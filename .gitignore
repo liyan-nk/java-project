@@ -16,3 +16,7 @@ storage/marketplace/*
 !storage/marketplace/.gitkeep
 storage/lostfound/*
 !storage/lostfound/.gitkeep
+backend/storage/marketplace/*
+!backend/storage/marketplace/.gitkeep
+backend/storage/lostfound/*
+!backend/storage/lostfound/.gitkeep

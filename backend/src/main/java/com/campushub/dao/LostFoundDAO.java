@@ -30,6 +30,32 @@ public class LostFoundDAO {
         return list.isEmpty() ? getFallbackItems() : list;
     }
 
+    public LostFoundItem createItem(LostFoundItem item) {
+        String sql = "INSERT INTO lost_found_items (reporter_id, type, title, description, location, date_reported, status, image_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            stmt.setInt(1, item.getReporterId());
+            stmt.setString(2, item.getType() != null ? item.getType() : "LOST");
+            stmt.setString(3, item.getTitle());
+            stmt.setString(4, item.getDescription());
+            stmt.setString(5, item.getLocation());
+            stmt.setString(6, item.getDateReported() != null ? item.getDateReported() : java.time.LocalDate.now().toString());
+            stmt.setString(7, item.getStatus() != null ? item.getStatus() : "OPEN");
+            stmt.setString(8, item.getImageUrl());
+            stmt.executeUpdate();
+
+            try (ResultSet rs = stmt.getGeneratedKeys()) {
+                if (rs.next()) {
+                    item.setId(rs.getInt(1));
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Failed to create lost/found item: " + e.getMessage());
+            if (item.getId() == 0) item.setId((int) (System.currentTimeMillis() % 10000));
+        }
+        return item;
+    }
+
     public LostFoundItem claimItem(int id, String newStatus) {
         String updateSql = "UPDATE lost_found_items SET status = ? WHERE id = ?";
         try (Connection conn = DatabaseConfig.getConnection();

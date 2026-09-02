@@ -5,9 +5,11 @@ import com.campushub.dao.MarketplaceDAO;
 import com.campushub.dao.PlannerDAO;
 import com.campushub.dao.UserDAO;
 import com.campushub.models.AttendanceRecord;
+import com.campushub.models.LostFoundItem;
 import com.campushub.models.MarketplaceItem;
 import com.campushub.models.TimetableEntry;
 import com.campushub.models.User;
+import com.campushub.utils.FileStorageUtil;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.sun.net.httpserver.HttpExchange;
@@ -15,6 +17,7 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 import java.io.*;
+import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -54,6 +57,9 @@ public class WebServer {
         server.createContext("/api/marketplace", new MarketplaceHandler());
         server.createContext("/api/lostfound/claim", new LostFoundClaimHandler());
         server.createContext("/api/lostfound", new LostFoundHandler());
+
+        // Static Storage Handler for Uploaded Files
+        server.createContext("/storage/", new StorageFileHandler());
 
         // Static File Handler for Frontend PWA
         server.createContext("/", new StaticFileHandler());
@@ -187,26 +193,137 @@ public class WebServer {
                 sendJsonResponse(exchange, 200, items);
             } else if ("POST".equalsIgnoreCase(method)) {
                 String body = readRequestBody(exchange);
-                MarketplaceItem item = gson.fromJson(body, MarketplaceItem.class);
-                if (item.getSellerId() == 0) item.setSellerId(2);
+                JsonObject json = gson.fromJson(body, JsonObject.class);
+
+                String imageBase64 = null;
+                if (json != null) {
+                    if (json.has("imageBase64") && !json.get("imageBase64").isJsonNull()) {
+                        imageBase64 = json.get("imageBase64").getAsString();
+                    } else if (json.has("imageUrl") && !json.get("imageUrl").isJsonNull()) {
+                        imageBase64 = json.get("imageUrl").getAsString();
+                    }
+                }
+
+                String imagePath = FileStorageUtil.saveBase64Image(imageBase64, "marketplace");
+
+                MarketplaceItem item = new MarketplaceItem();
+                item.setSellerId(2);
+                item.setTitle(json != null && json.has("title") ? json.get("title").getAsString() : "Untitled Item");
+                item.setDescription(json != null && json.has("description") ? json.get("description").getAsString() : "");
+                if (json != null && json.has("price") && !json.get("price").isJsonNull()) {
+                    item.setPrice(json.get("price").getAsBigDecimal());
+                } else {
+                    item.setPrice(BigDecimal.ZERO);
+                }
+                item.setCategory(json != null && json.has("category") ? json.get("category").getAsString() : "GENERAL");
+                item.setStatus("AVAILABLE");
+                item.setImageUrl(imagePath);
+
                 MarketplaceItem created = marketplaceDAO.createItem(item);
-                sendJsonResponse(exchange, 201, created);
+
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("id", created.getId());
+                response.put("imagePath", imagePath);
+                sendJsonResponse(exchange, 201, response);
             } else {
                 sendJsonResponse(exchange, 405, Map.of("error", "Method not allowed"));
             }
         }
     }
 
-    // 6. GET /api/lostfound
+    // 6. GET, POST /api/lostfound
     private class LostFoundHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             if (handlePreflightOptions(exchange)) return;
-            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
+            String method = exchange.getRequestMethod();
+
+            if ("GET".equalsIgnoreCase(method)) {
+                sendJsonResponse(exchange, 200, lostFoundDAO.getAllItems());
+            } else if ("POST".equalsIgnoreCase(method)) {
+                String body = readRequestBody(exchange);
+                JsonObject json = gson.fromJson(body, JsonObject.class);
+
+                String imageBase64 = null;
+                if (json != null) {
+                    if (json.has("imageBase64") && !json.get("imageBase64").isJsonNull()) {
+                        imageBase64 = json.get("imageBase64").getAsString();
+                    } else if (json.has("imageUrl") && !json.get("imageUrl").isJsonNull()) {
+                        imageBase64 = json.get("imageUrl").getAsString();
+                    }
+                }
+
+                String imagePath = FileStorageUtil.saveBase64Image(imageBase64, "lostfound");
+
+                String title = json != null && json.has("itemName") ? json.get("itemName").getAsString() : (json != null && json.has("title") ? json.get("title").getAsString() : "Reported Item");
+                String type = json != null && json.has("itemType") ? json.get("itemType").getAsString() : (json != null && json.has("type") ? json.get("type").getAsString() : "LOST");
+                String location = json != null && json.has("locationFoundOrLost") ? json.get("locationFoundOrLost").getAsString() : (json != null && json.has("location") ? json.get("location").getAsString() : "Campus");
+                String dateReported = json != null && json.has("dateReported") ? json.get("dateReported").getAsString() : java.time.LocalDate.now().toString();
+                String description = json != null && json.has("description") ? json.get("description").getAsString() : "";
+
+                LostFoundItem item = new LostFoundItem();
+                item.setReporterId(2);
+                item.setTitle(title);
+                item.setType(type);
+                item.setLocation(location);
+                item.setDateReported(dateReported);
+                item.setDescription(description);
+                item.setStatus("OPEN");
+                item.setImageUrl(imagePath);
+
+                LostFoundItem created = lostFoundDAO.createItem(item);
+
+                Map<String, Object> response = new HashMap<>();
+                response.put("success", true);
+                response.put("id", created.getId());
+                response.put("imagePath", imagePath);
+                sendJsonResponse(exchange, 201, response);
+            } else {
                 sendJsonResponse(exchange, 405, Map.of("error", "Method not allowed"));
-                return;
             }
-            sendJsonResponse(exchange, 200, lostFoundDAO.getAllItems());
+        }
+    }
+
+    // Static Storage Route Handler for /storage/
+    private static class StorageFileHandler implements HttpHandler {
+        private final Map<String, String> mimeTypes = new HashMap<>();
+
+        public StorageFileHandler() {
+            mimeTypes.put("png", "image/png");
+            mimeTypes.put("jpg", "image/jpeg");
+            mimeTypes.put("jpeg", "image/jpeg");
+            mimeTypes.put("webp", "image/webp");
+            mimeTypes.put("gif", "image/gif");
+            mimeTypes.put("svg", "image/svg+xml");
+        }
+
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            applyCorsAndHeaders(exchange);
+            if (handlePreflightOptions(exchange)) return;
+
+            String pathStr = exchange.getRequestURI().getPath();
+            String subPath = pathStr.startsWith("/storage/") ? pathStr.substring("/storage/".length()) : pathStr.substring(1);
+
+            Path basePath = Paths.get(System.getProperty("user.dir"), "storage").normalize();
+            Path filePath = basePath.resolve(subPath).normalize();
+
+            if (filePath.startsWith(basePath) && Files.exists(filePath) && !Files.isDirectory(filePath)) {
+                String fileName = filePath.getFileName().toString();
+                int i = fileName.lastIndexOf('.');
+                String ext = (i > 0) ? fileName.substring(i + 1).toLowerCase() : "";
+                String contentType = mimeTypes.getOrDefault(ext, "application/octet-stream");
+
+                exchange.getResponseHeaders().set("Content-Type", contentType);
+                byte[] data = Files.readAllBytes(filePath);
+                exchange.sendResponseHeaders(200, data.length);
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(data);
+                }
+            } else {
+                sendJsonResponse(exchange, 404, Map.of("error", "File not found"));
+            }
         }
     }
 
