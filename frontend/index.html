@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>CampusHub — Campus Intelligence & PWA</title>
+  
+  <meta name="description" content="Next-Gen Campus Intelligence, Timetable Planner, Attendance Tracker & Marketplace">
+  <meta name="theme-color" content="#F7F7F5">
+  <link rel="manifest" href="/manifest.json">
+
+  <!-- Apple Touch Icons & Meta -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="/css/styles.css">
+  
+  <!-- Scripts -->
+  <script src="/js/theme.js"></script>
+  <script src="/js/app.js" defer></script>
+</head>
+<body>
+
+  <!-- Glassmorphic Header -->
+  <header class="app-header">
+    <div class="header-brand">
+      <span style="font-size: 1.3rem;">🎓</span>
+      <h1 class="header-title">CampusHub</h1>
+    </div>
+    <div class="header-actions">
+      <div class="user-badge">
+        <img id="user-avatar" class="avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=John" alt="User Avatar">
+        <span id="user-name">John Doe</span>
+      </div>
+      <button id="theme-toggle-btn" class="theme-toggle-btn" aria-label="Toggle theme">🌙</button>
+    </div>
+  </header>
+
+  <!-- Main View Container -->
+  <main class="container">
+
+    <!-- 1. HOME VIEW -->
+    <section id="home-view" class="view-section active">
+      <div class="section-title">
+        <span>Overview</span>
+        <span class="badge badge-blue">Live Sync</span>
+      </div>
+      <div id="home-summary">
+        <!-- Dynamic Summary Rendered via app.js -->
+      </div>
+      <div class="card" style="margin-top: 16px;">
+        <h4 style="font-size: 0.95rem; margin-bottom: 8px;">📢 Campus Announcements</h4>
+        <p style="font-size: 0.85rem; color: var(--text-secondary);">Semester registration closes this Friday at 11:59 PM. Make sure your course selections are finalized in the Planner tab.</p>
+      </div>
+    </section>
+
+    <!-- 2. PLANNER VIEW -->
+    <section id="planner-view" class="view-section">
+      <div class="section-title">
+        <span>Course Timetable</span>
+      </div>
+      <div id="timetable-list">
+        <!-- Dynamic Timetable Rendered via app.js -->
+      </div>
+
+      <div class="section-title" style="margin-top: 24px;">
+        <span>Attendance Tracker</span>
+      </div>
+      <div id="attendance-list">
+        <!-- Dynamic Attendance Rendered via app.js -->
+      </div>
+    </section>
+
+    <!-- 3. MARKETPLACE VIEW -->
+    <section id="market-view" class="view-section">
+      <div class="section-title">
+        <span>Campus Marketplace</span>
+        <button class="btn" onclick="alert('Post Item modal trigger ready')">+ Post Item</button>
+      </div>
+      <div id="marketplace-list">
+        <!-- Dynamic Marketplace Items Rendered via app.js -->
+      </div>
+    </section>
+
+    <!-- 4. LOST & FOUND VIEW -->
+    <section id="lost-view" class="view-section">
+      <div class="section-title">
+        <span>Lost & Found Reports</span>
+        <button class="btn btn-secondary" onclick="alert('Report Lost/Found item trigger ready')">+ Report Item</button>
+      </div>
+      <div id="lostfound-list">
+        <!-- Dynamic Lost & Found Items Rendered via app.js -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Mobile Fixed Bottom Dock -->
+  <nav class="bottom-dock">
+    <button class="dock-item active" data-view="home">
+      <span class="dock-icon">🏠</span>
+      <span>Home</span>
+    </button>
+    <button class="dock-item" data-view="planner">
+      <span class="dock-icon">📅</span>
+      <span>Planner</span>
+    </button>
+    <button class="dock-item" data-view="market">
+      <span class="dock-icon">🛍️</span>
+      <span>Market</span>
+    </button>
+    <button class="dock-item" data-view="lost">
+      <span class="dock-icon">🔍</span>
+      <span>Lost</span>
+    </button>
+  </nav>
+
+</body>
+</html>

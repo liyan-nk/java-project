@@ -1,0 +1,18 @@
+# Target build output
+target/
+*.class
+*.jar
+*.war
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+*.swp
+.DS_Store
+
+# Local Storage directories (except .gitkeep)
+storage/marketplace/*
+!storage/marketplace/.gitkeep
+storage/lostfound/*
+!storage/lostfound/.gitkeep
