@@ -11,7 +11,8 @@ public class LostFoundItem {
     private String description;
     private String location;
     private String dateReported;
-    private String status; // 'OPEN' or 'CLAIMED'
+    private String status; // 'OPEN', 'PENDING_VERIFICATION', 'RESOLVED'
+    private String claimStatus;
     private String imageUrl;
     private Timestamp createdAt;
 
@@ -28,6 +29,7 @@ public class LostFoundItem {
         this.location = location;
         this.dateReported = dateReported;
         this.status = status;
+        this.claimStatus = status;
         this.imageUrl = imageUrl;
         this.createdAt = createdAt;
     }
@@ -97,11 +99,21 @@ public class LostFoundItem {
     }
 
     public String getStatus() {
-        return status;
+        return status != null ? status : claimStatus;
     }
 
     public void setStatus(String status) {
         this.status = status;
+        this.claimStatus = status;
+    }
+
+    public String getClaimStatus() {
+        return claimStatus != null ? claimStatus : status;
+    }
+
+    public void setClaimStatus(String claimStatus) {
+        this.claimStatus = claimStatus;
+        this.status = claimStatus;
     }
 
     public String getImageUrl() {

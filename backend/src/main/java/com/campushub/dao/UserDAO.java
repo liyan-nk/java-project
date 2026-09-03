@@ -45,6 +45,10 @@ public class UserDAO {
         return getFallbackUserById(id);
     }
 
+    public User getUserById(int id) {
+        return findById(id);
+    }
+
     public User createUser(User user) {
         String sql = "INSERT INTO users (name, email, password_hash, role, avatar_url) VALUES (?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConfig.getConnection();

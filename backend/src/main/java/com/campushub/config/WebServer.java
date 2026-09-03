@@ -354,10 +354,89 @@ public class WebServer {
             }
             String body = readRequestBody(exchange);
             JsonObject json = gson.fromJson(body, JsonObject.class);
-            int id = json.has("id") ? json.get("id").getAsInt() : 1;
-            String status = json.has("status") ? json.get("status").getAsString() : "CLAIMED";
 
-            sendJsonResponse(exchange, 200, lostFoundDAO.claimItem(id, status));
+            int itemId = 0;
+            if (json != null) {
+                if (json.has("itemId")) {
+                    itemId = json.get("itemId").getAsInt();
+                } else if (json.has("id")) {
+                    itemId = json.get("id").getAsInt();
+                }
+            }
+
+            String newStatus = null;
+            if (json != null) {
+                if (json.has("newStatus")) {
+                    newStatus = json.get("newStatus").getAsString();
+                } else if (json.has("status")) {
+                    newStatus = json.get("status").getAsString();
+                }
+            }
+
+            int userId = (json != null && json.has("userId")) ? json.get("userId").getAsInt() : 2;
+
+            User actingUser = userDAO.getUserById(userId);
+            if (actingUser == null) {
+                actingUser = userDAO.getUserById(2);
+            }
+
+            LostFoundItem item = lostFoundDAO.getItemById(itemId);
+            if (item == null) {
+                sendJsonResponse(exchange, 404, Map.of("error", "Item not found"));
+                return;
+            }
+
+            String currentStatus = item.getClaimStatus() != null ? item.getClaimStatus() : item.getStatus();
+            if (currentStatus == null) {
+                currentStatus = "OPEN";
+            }
+
+            // State Machine Rules
+            if ("RESOLVED".equalsIgnoreCase(currentStatus)) {
+                sendJsonResponse(exchange, 400, Map.of("error", "Resolved items cannot change status"));
+                return;
+            }
+
+            if ("PENDING_VERIFICATION".equalsIgnoreCase(newStatus)) {
+                if (!"OPEN".equalsIgnoreCase(currentStatus)) {
+                    sendJsonResponse(exchange, 400, Map.of("error", "Invalid state transition from " + currentStatus + " to " + newStatus));
+                    return;
+                }
+            } else if ("RESOLVED".equalsIgnoreCase(newStatus)) {
+                boolean isAuthorized = actingUser != null && ("ADMIN".equalsIgnoreCase(actingUser.getRole()) || actingUser.getId() == item.getReporterId());
+                if (!isAuthorized) {
+                    sendJsonResponse(exchange, 403, Map.of("error", "Only an ADMIN or the original reporter can verify and resolve claims"));
+                    return;
+                }
+                if (!"PENDING_VERIFICATION".equalsIgnoreCase(currentStatus)) {
+                    sendJsonResponse(exchange, 400, Map.of("error", "Invalid state transition from " + currentStatus + " to " + newStatus));
+                    return;
+                }
+            } else if ("OPEN".equalsIgnoreCase(newStatus)) {
+                boolean isAuthorized = actingUser != null && ("ADMIN".equalsIgnoreCase(actingUser.getRole()) || actingUser.getId() == item.getReporterId());
+                if (!isAuthorized) {
+                    sendJsonResponse(exchange, 403, Map.of("error", "Only an ADMIN or the original reporter can verify and resolve claims"));
+                    return;
+                }
+                if (!"PENDING_VERIFICATION".equalsIgnoreCase(currentStatus)) {
+                    sendJsonResponse(exchange, 400, Map.of("error", "Invalid state transition from " + currentStatus + " to " + newStatus));
+                    return;
+                }
+            } else {
+                sendJsonResponse(exchange, 400, Map.of("error", "Invalid state transition from " + currentStatus + " to " + newStatus));
+                return;
+            }
+
+            lostFoundDAO.updateClaimStatus(itemId, newStatus);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("itemId", itemId);
+            response.put("previousStatus", currentStatus);
+            response.put("claimStatus", newStatus);
+            response.put("verifiedBy", actingUser != null ? actingUser.getName() : "System");
+
+            sendJsonResponse(exchange, 200, response);
         }
     }
 
