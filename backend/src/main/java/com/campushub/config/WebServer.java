@@ -173,11 +173,27 @@ public class WebServer {
             }
             String body = readRequestBody(exchange);
             JsonObject json = gson.fromJson(body, JsonObject.class);
-            int id = json.has("id") ? json.get("id").getAsInt() : 1;
-            boolean attended = !json.has("attended") || json.get("attended").getAsBoolean();
+            int id = (json != null && json.has("id")) ? json.get("id").getAsInt() : 1;
+            boolean present = true;
+            if (json != null) {
+                if (json.has("present")) {
+                    present = json.get("present").getAsBoolean();
+                } else if (json.has("attended")) {
+                    present = json.get("attended").getAsBoolean();
+                }
+            }
 
-            AttendanceRecord updated = plannerDAO.stepAttendance(id, attended);
-            sendJsonResponse(exchange, 200, updated);
+            AttendanceRecord record = plannerDAO.stepAttendance(id, present);
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("id", record.getId());
+            response.put("attendedClasses", record.getAttendedClasses());
+            response.put("totalClasses", record.getTotalClasses());
+            response.put("percentage", record.getPercentage());
+            response.put("isLow", record.isLow());
+
+            sendJsonResponse(exchange, 200, response);
         }
     }
 

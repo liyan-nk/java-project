@@ -7,6 +7,7 @@ public class AttendanceRecord {
     private int totalClasses;
     private int attendedClasses;
     private double targetPercentage;
+    private boolean isLow;
 
     public AttendanceRecord() {
     }
@@ -18,6 +19,7 @@ public class AttendanceRecord {
         this.totalClasses = totalClasses;
         this.attendedClasses = attendedClasses;
         this.targetPercentage = targetPercentage;
+        this.isLow = getPercentage() < 75.0;
     }
 
     public int getId() {
@@ -50,6 +52,7 @@ public class AttendanceRecord {
 
     public void setTotalClasses(int totalClasses) {
         this.totalClasses = totalClasses;
+        this.isLow = getPercentage() < 75.0;
     }
 
     public int getAttendedClasses() {
@@ -58,6 +61,7 @@ public class AttendanceRecord {
 
     public void setAttendedClasses(int attendedClasses) {
         this.attendedClasses = attendedClasses;
+        this.isLow = getPercentage() < 75.0;
     }
 
     public double getTargetPercentage() {
@@ -66,6 +70,18 @@ public class AttendanceRecord {
 
     public void setTargetPercentage(double targetPercentage) {
         this.targetPercentage = targetPercentage;
+    }
+
+    public boolean isLow() {
+        return isLow;
+    }
+
+    public void setLow(boolean isLow) {
+        this.isLow = isLow;
+    }
+
+    public void setIsLow(boolean isLow) {
+        this.isLow = isLow;
     }
 
     public double getPercentage() {
