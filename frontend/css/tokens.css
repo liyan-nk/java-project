@@ -1,0 +1,69 @@
+/* CampusHub Design System: Apple x Notion Design Tokens */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  /* Notion Light Clean Theme (Default) */
+  --bg-primary: #F7F7F5;
+  --bg-secondary: #FFFFFF;
+  --text-primary: #191919;
+  --text-secondary: #6B6E76;
+  --border-color: #E6E6E4;
+  --accent-color: #2383E2;
+  --accent-hover: #1D6FBF;
+  --badge-bg: #EFEFED;
+  --badge-text: #37352F;
+  --glass-bg: rgba(247, 247, 245, 0.82);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.08);
+
+  /* Shared Tokens */
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms ease;
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Accent Color Variants */
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+
+  /* Ambient Cursor Glow (Light Mode: subtle dark shade pooling near cursor) */
+  --cursor-glow-size: 500px;
+  --cursor-glow-offset: -250px;
+  --cursor-glow-bg: radial-gradient(circle, rgba(0, 0, 0, 0.07) 0%, rgba(0, 0, 0, 0) 70%);
+  --cursor-glow-blend: multiply;
+  --cursor-glow-filter: none;
+}
+
+[data-theme="dark"] {
+  /* Notion Dark Obsidian Theme */
+  --bg-primary: #0D0D0E;
+  --bg-secondary: #161618;
+  --text-primary: #EDEDED;
+  --text-secondary: #9B9B9B;
+  --border-color: #27272A;
+  --accent-color: #0A84FF;
+  --accent-hover: #409CFF;
+  --badge-bg: #222225;
+  --badge-text: #D4D4D8;
+  --glass-bg: rgba(13, 13, 14, 0.82);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.5);
+
+  /* Ambient Cursor Glow (Dark Mode: seamless ambient illumination with multi-stop falloff & diffusion) */
+  --cursor-glow-size: 800px;
+  --cursor-glow-offset: -400px;
+  --cursor-glow-bg: radial-gradient(circle,
+    rgba(10, 132, 255, 0.10) 0%,
+    rgba(10, 132, 255, 0.06) 25%,
+    rgba(10, 132, 255, 0.03) 50%,
+    rgba(10, 132, 255, 0.01) 75%,
+    transparent 100%);
+  --cursor-glow-blend: screen;
+  --cursor-glow-filter: blur(40px);
+}
