@@ -1,0 +1,58 @@
+/* CampusHub Bottom Glassmorphic Navigation Dock */
+
+.bottom-dock {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 440px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: 30px;
+  padding: 6px;
+  display: flex;
+  justify-content: space-around;
+  box-shadow: var(--shadow-md);
+  z-index: 200;
+  user-select: none;
+  transition: background-color var(--transition-normal), border-color var(--transition-fast);
+}
+
+.dock-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--transition-fast), background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.dock-item:hover {
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.dock-item:active {
+  transform: scale(0.96);
+}
+
+.dock-item.active {
+  color: var(--accent-color);
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.dock-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+}
