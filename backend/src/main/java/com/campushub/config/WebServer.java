@@ -323,6 +323,9 @@ public class WebServer {
             String subPath = pathStr.startsWith("/storage/") ? pathStr.substring("/storage/".length()) : pathStr.substring(1);
 
             Path basePath = Paths.get(System.getProperty("user.dir"), "storage").normalize();
+            if (!Files.exists(basePath)) {
+                basePath = Paths.get(System.getProperty("user.dir"), "..", "storage").normalize();
+            }
             Path filePath = basePath.resolve(subPath).normalize();
 
             if (filePath.startsWith(basePath) && Files.exists(filePath) && !Files.isDirectory(filePath)) {
@@ -461,8 +464,11 @@ public class WebServer {
             String pathStr = exchange.getRequestURI().getPath();
             if (pathStr.equals("/")) pathStr = "/index.html";
 
-            // Resolve frontend path
+            // Resolve frontend path (check user.dir/frontend, then fallback to parent user.dir/../frontend)
             Path basePath = Paths.get(System.getProperty("user.dir"), "frontend").normalize();
+            if (!Files.exists(basePath)) {
+                basePath = Paths.get(System.getProperty("user.dir"), "..", "frontend").normalize();
+            }
             Path filePath = basePath.resolve(pathStr.substring(1)).normalize();
 
             if (!filePath.startsWith(basePath) || !Files.exists(filePath) || Files.isDirectory(filePath)) {
