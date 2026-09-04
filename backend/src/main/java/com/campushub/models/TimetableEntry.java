@@ -1,11 +1,18 @@
 package com.campushub.models;
 
+import com.google.gson.annotations.SerializedName;
+
 public class TimetableEntry {
     private int id;
     private int userId;
     private String dayOfWeek;
+
+    @SerializedName(value = "subject", alternate = {"subjectName"})
     private String subject;
+
+    @SerializedName(value = "room", alternate = {"classroom"})
     private String room;
+
     private String startTime;
     private String endTime;
     private String instructor;
@@ -56,12 +63,28 @@ public class TimetableEntry {
         this.subject = subject;
     }
 
+    public String getSubjectName() {
+        return subject;
+    }
+
+    public void setSubjectName(String subjectName) {
+        this.subject = subjectName;
+    }
+
     public String getRoom() {
         return room;
     }
 
     public void setRoom(String room) {
         this.room = room;
+    }
+
+    public String getClassroom() {
+        return room;
+    }
+
+    public void setClassroom(String classroom) {
+        this.room = classroom;
     }
 
     public String getStartTime() {

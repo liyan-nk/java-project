@@ -45,6 +45,10 @@ public class UserDAO {
         return getFallbackUserById(id);
     }
 
+    public User getUserById(int id) {
+        return findById(id);
+    }
+
     public User createUser(User user) {
         String sql = "INSERT INTO users (name, email, password_hash, role, avatar_url) VALUES (?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConfig.getConnection();
@@ -70,9 +74,16 @@ public class UserDAO {
     }
 
     private User mapUser(ResultSet rs) throws SQLException {
+        String name;
+        try {
+            name = rs.getString("name");
+            if (name == null) name = rs.getString("full_name");
+        } catch (SQLException e) {
+            name = rs.getString("full_name");
+        }
         return new User(
                 rs.getInt("id"),
-                rs.getString("name"),
+                name,
                 rs.getString("email"),
                 rs.getString("password_hash"),
                 rs.getString("role"),

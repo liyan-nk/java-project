@@ -91,34 +91,63 @@ public class PlannerDAO {
         return list.isEmpty() ? getFallbackAttendance(userId) : list;
     }
 
-    public AttendanceRecord stepAttendance(int recordId, boolean attended) {
-        String updateSql = "UPDATE attendance SET total_classes = total_classes + 1, attended_classes = attended_classes + ? WHERE id = ?";
+    public AttendanceRecord stepAttendance(int recordId, boolean present) {
+        String updatePresentSql = "UPDATE attendance SET attended_classes = attended_classes + 1, total_classes = total_classes + 1 WHERE id = ?";
+        String updateAbsentSql = "UPDATE attendance SET total_classes = total_classes + 1 WHERE id = ?";
         String selectSql = "SELECT id, user_id, subject, total_classes, attended_classes, target_percentage FROM attendance WHERE id = ?";
-        try (Connection conn = DatabaseConfig.getConnection();
-             PreparedStatement updateStmt = conn.prepareStatement(updateSql);
-             PreparedStatement selectStmt = conn.prepareStatement(selectSql)) {
-            updateStmt.setInt(1, attended ? 1 : 0);
-            updateStmt.setInt(2, recordId);
-            updateStmt.executeUpdate();
 
-            selectStmt.setInt(1, recordId);
-            try (ResultSet rs = selectStmt.executeQuery()) {
-                if (rs.next()) {
-                    return new AttendanceRecord(
-                            rs.getInt("id"),
-                            rs.getInt("user_id"),
-                            rs.getString("subject"),
-                            rs.getInt("total_classes"),
-                            rs.getInt("attended_classes"),
-                            rs.getDouble("target_percentage")
-                    );
+        try (Connection conn = DatabaseConfig.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                String sql = present ? updatePresentSql : updateAbsentSql;
+                try (PreparedStatement updateStmt = conn.prepareStatement(sql)) {
+                    updateStmt.setInt(1, recordId);
+                    updateStmt.executeUpdate();
                 }
+
+                AttendanceRecord record = null;
+                try (PreparedStatement selectStmt = conn.prepareStatement(selectSql)) {
+                    selectStmt.setInt(1, recordId);
+                    try (ResultSet rs = selectStmt.executeQuery()) {
+                        if (rs.next()) {
+                            record = new AttendanceRecord(
+                                    rs.getInt("id"),
+                                    rs.getInt("user_id"),
+                                    rs.getString("subject"),
+                                    rs.getInt("total_classes"),
+                                    rs.getInt("attended_classes"),
+                                    rs.getDouble("target_percentage")
+                            );
+                        }
+                    }
+                }
+
+                conn.commit();
+                if (record != null) {
+                    double pct = record.getTotalClasses() == 0 ? 0.0 : ((double) record.getAttendedClasses() / record.getTotalClasses() * 100.0);
+                    pct = Math.round(pct * 100.0) / 100.0;
+                    record.setLow(pct < 75.0);
+                    return record;
+                }
+            } catch (Exception e) {
+                try {
+                    conn.rollback();
+                } catch (SQLException ex) {
+                    LOGGER.log(Level.SEVERE, "Failed to rollback transaction: " + ex.getMessage(), ex);
+                }
+                LOGGER.log(Level.WARNING, "Step attendance transaction failed and was rolled back: " + e.getMessage(), e);
             }
         } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Step attendance DB operation failed, performing soft update: " + e.getMessage());
+            LOGGER.log(Level.WARNING, "Step attendance DB operation failed, performing fallback: " + e.getMessage());
         }
+
         // Fallback calculation object
-        return new AttendanceRecord(recordId, 2, "Data Structures & Algorithms", 25, attended ? 22 : 21, 75.0);
+        int fallbackTotal = 25;
+        int fallbackAttended = present ? 22 : 21;
+        AttendanceRecord fallback = new AttendanceRecord(recordId, 2, "Data Structures & Algorithms", fallbackTotal, fallbackAttended, 75.0);
+        double fallbackPct = Math.round(((double) fallbackAttended / fallbackTotal * 100.0) * 100.0) / 100.0;
+        fallback.setLow(fallbackPct < 75.0);
+        return fallback;
     }
 
     private List<TimetableEntry> getFallbackTimetable(int userId) {

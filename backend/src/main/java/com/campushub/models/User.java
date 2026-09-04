@@ -1,12 +1,16 @@
 package com.campushub.models;
 
+import com.google.gson.annotations.SerializedName;
 import java.sql.Timestamp;
 
 public class User {
     private int id;
+
+    @SerializedName(value = "fullName", alternate = {"name"})
     private String name;
+
     private String email;
-    private String passwordHash;
+    private transient String passwordHash;
     private String role;
     private String avatarUrl;
     private Timestamp createdAt;
@@ -38,6 +42,14 @@ public class User {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getFullName() {
+        return name;
+    }
+
+    public void setFullName(String fullName) {
+        this.name = fullName;
     }
 
     public String getEmail() {

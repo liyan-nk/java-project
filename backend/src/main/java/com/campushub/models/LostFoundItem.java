@@ -1,18 +1,32 @@
 package com.campushub.models;
 
+import com.google.gson.annotations.SerializedName;
 import java.sql.Timestamp;
 
 public class LostFoundItem {
     private int id;
     private int reporterId;
     private String reporterName;
+    private String reporterEmail;
+
+    @SerializedName(value = "type", alternate = {"itemType"})
     private String type; // 'LOST' or 'FOUND'
+
+    @SerializedName(value = "title", alternate = {"itemName"})
     private String title;
+
     private String description;
+
+    @SerializedName(value = "location", alternate = {"locationFoundOrLost"})
     private String location;
+
     private String dateReported;
-    private String status; // 'OPEN' or 'CLAIMED'
+    private String status; // 'OPEN', 'PENDING_VERIFICATION', 'RESOLVED'
+    private String claimStatus;
+
+    @SerializedName(value = "imageUrl", alternate = {"imagePath"})
     private String imageUrl;
+
     private Timestamp createdAt;
 
     public LostFoundItem() {
@@ -28,6 +42,7 @@ public class LostFoundItem {
         this.location = location;
         this.dateReported = dateReported;
         this.status = status;
+        this.claimStatus = status;
         this.imageUrl = imageUrl;
         this.createdAt = createdAt;
     }
@@ -56,6 +71,18 @@ public class LostFoundItem {
         this.reporterName = reporterName;
     }
 
+    public String getReporterEmail() {
+        if (reporterEmail != null) return reporterEmail;
+        if (reporterName != null) {
+            return reporterName.toLowerCase().replace(" ", ".") + "@campushub.com";
+        }
+        return "reporter@campushub.com";
+    }
+
+    public void setReporterEmail(String reporterEmail) {
+        this.reporterEmail = reporterEmail;
+    }
+
     public String getType() {
         return type;
     }
@@ -64,12 +91,28 @@ public class LostFoundItem {
         this.type = type;
     }
 
+    public String getItemType() {
+        return type;
+    }
+
+    public void setItemType(String itemType) {
+        this.type = itemType;
+    }
+
     public String getTitle() {
         return title;
     }
 
     public void setTitle(String title) {
         this.title = title;
+    }
+
+    public String getItemName() {
+        return title;
+    }
+
+    public void setItemName(String itemName) {
+        this.title = itemName;
     }
 
     public String getDescription() {
@@ -88,6 +131,14 @@ public class LostFoundItem {
         this.location = location;
     }
 
+    public String getLocationFoundOrLost() {
+        return location;
+    }
+
+    public void setLocationFoundOrLost(String locationFoundOrLost) {
+        this.location = locationFoundOrLost;
+    }
+
     public String getDateReported() {
         return dateReported;
     }
@@ -97,11 +148,21 @@ public class LostFoundItem {
     }
 
     public String getStatus() {
-        return status;
+        return status != null ? status : claimStatus;
     }
 
     public void setStatus(String status) {
         this.status = status;
+        this.claimStatus = status;
+    }
+
+    public String getClaimStatus() {
+        return claimStatus != null ? claimStatus : status;
+    }
+
+    public void setClaimStatus(String claimStatus) {
+        this.claimStatus = claimStatus;
+        this.status = claimStatus;
     }
 
     public String getImageUrl() {
@@ -110,6 +171,14 @@ public class LostFoundItem {
 
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+
+    public String getImagePath() {
+        return imageUrl;
+    }
+
+    public void setImagePath(String imagePath) {
+        this.imageUrl = imagePath;
     }
 
     public Timestamp getCreatedAt() {
