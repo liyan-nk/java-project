@@ -74,9 +74,16 @@ public class UserDAO {
     }
 
     private User mapUser(ResultSet rs) throws SQLException {
+        String name;
+        try {
+            name = rs.getString("name");
+            if (name == null) name = rs.getString("full_name");
+        } catch (SQLException e) {
+            name = rs.getString("full_name");
+        }
         return new User(
                 rs.getInt("id"),
-                rs.getString("name"),
+                name,
                 rs.getString("email"),
                 rs.getString("password_hash"),
                 rs.getString("role"),
