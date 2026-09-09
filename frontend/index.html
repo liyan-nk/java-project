@@ -1,26 +1,39 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light" data-role="STUDENT">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>CampusHub — Campus Intelligence & PWA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>CampusHub — Campus Intelligence & Desktop Admin Workspace</title>
   
-  <meta name="description" content="Mobile-First Campus Intelligence, Timetable Planner, Attendance Tracker & Marketplace">
+  <meta name="description" content="Mobile-First Campus Intelligence, Timetable Planner, Attendance Tracker, Marketplace & Desktop Admin Workspace">
   <meta name="theme-color" content="#F7F7F5">
   <link rel="manifest" href="/manifest.json">
 
-  <!-- Apple Touch Icons & Meta -->
+  <!-- Apple Touch Icons & Web App Capabilities -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="CampusHub">
 
-  <!-- Modular Stylesheets loaded directly in dependency order -->
-  <link rel="stylesheet" href="/css/tokens.css">
-  <link rel="stylesheet" href="/css/reset.css">
-  <link rel="stylesheet" href="/css/cards.css">
-  <link rel="stylesheet" href="/css/modals.css">
-  <link rel="stylesheet" href="/css/toast.css">
-  <link rel="stylesheet" href="/css/dock.css">
+  <!-- Zero-FOUC Synchronous Theme & Role Initializer -->
+  <script>
+    (function() {
+      try {
+        var savedTheme = localStorage.getItem('campushub-theme');
+        var theme = (savedTheme === 'dark' || savedTheme === 'light') 
+          ? savedTheme 
+          : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+        
+        var savedRole = localStorage.getItem('campushub-role') || 'STUDENT';
+        document.documentElement.setAttribute('data-role', savedRole);
+      } catch (e) {
+        console.warn('Initial theme/role hydration failed', e);
+      }
+    })();
+  </script>
+
+  <!-- Unified Apple x Notion Production Stylesheet -->
+  <link rel="stylesheet" href="/css/styles.css">
   
   <!-- ES Module Application Entrypoint -->
   <script type="module" src="/js/app.js"></script>
@@ -35,62 +48,96 @@
 
   <!-- Glassmorphic Top Header -->
   <header class="app-header">
-    <div class="header-brand">
+    <div class="header-brand" id="brand-home-btn" role="button" tabindex="0" aria-label="CampusHub Home">
       <span class="brand-logo" role="img" aria-label="CampusHub Graduation Cap">🎓</span>
       <h1 class="header-title">CampusHub</h1>
     </div>
+
+    <!-- Desktop Navigation Bar (Shown on tablet and desktop screens) -->
+    <nav class="desktop-nav" id="desktop-nav" aria-label="Desktop Navigation" role="tablist">
+      <button type="button" class="nav-tab active" data-view="home" role="tab" aria-selected="true">
+        <span class="nav-icon">🏠</span> <span>Home</span>
+      </button>
+      <button type="button" class="nav-tab" data-view="planner" role="tab" aria-selected="false">
+        <span class="nav-icon">📅</span> <span>Planner</span>
+      </button>
+      <button type="button" class="nav-tab" data-view="market" role="tab" aria-selected="false">
+        <span class="nav-icon">🛍️</span> <span>Market</span>
+      </button>
+      <button type="button" class="nav-tab" data-view="lost" role="tab" aria-selected="false">
+        <span class="nav-icon">🔍</span> <span>Lost & Found</span>
+      </button>
+      <button type="button" class="nav-tab admin-nav-tab" data-view="admin" id="desktop-nav-admin" role="tab" aria-selected="false" style="display: none;">
+        <span class="nav-icon">⚙️</span> <span>Admin Workspace</span>
+      </button>
+    </nav>
+    
     <div class="header-actions">
-      <div class="user-badge" id="user-profile-badge">
+      <!-- Interactive User Profile Badge with Role Switcher -->
+      <div class="user-badge" id="user-profile-badge" title="Click to toggle between STUDENT and ADMIN mode" role="button" tabindex="0" aria-label="Toggle role between Student and Admin">
         <img id="user-avatar" class="avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=John" alt="User Avatar">
-        <span id="user-name">John Doe</span>
-        <span id="user-role" class="role-pill">STUDENT</span>
+        <span id="user-name" class="user-name">John Doe</span>
+        <span id="user-role" class="role-pill" data-role="STUDENT">
+          STUDENT <span class="role-switch-icon" aria-hidden="true">⇄</span>
+        </span>
       </div>
-      <button id="theme-toggle-btn" class="theme-toggle-btn" aria-label="Toggle dark/light theme">🌙</button>
+
+      <!-- One-Tap Theme Toggle Icon -->
+      <button id="theme-toggle-btn" class="theme-toggle-btn" aria-label="Toggle dark/light theme" type="button">🌙</button>
     </div>
   </header>
 
-  <!-- Main View Container -->
-  <main class="container">
+  <!-- Main View Container (Distraction-free 1100px desktop shell) -->
+  <main class="container" id="main-container">
 
     <!-- 1. HOME VIEW SECTION -->
-    <section id="home-view" class="view-section active">
+    <section id="home-view" class="view-section active" role="tabpanel" aria-labelledby="tab-home">
       <!-- Mounted via views/home.js -->
     </section>
 
     <!-- 2. PLANNER VIEW SECTION -->
-    <section id="planner-view" class="view-section">
+    <section id="planner-view" class="view-section" role="tabpanel" aria-labelledby="tab-planner">
       <!-- Mounted via views/planner.js -->
     </section>
 
     <!-- 3. MARKETPLACE VIEW SECTION -->
-    <section id="market-view" class="view-section">
+    <section id="market-view" class="view-section" role="tabpanel" aria-labelledby="tab-market">
       <!-- Mounted via views/market.js -->
     </section>
 
     <!-- 4. LOST & FOUND VIEW SECTION -->
-    <section id="lost-view" class="view-section">
+    <section id="lost-view" class="view-section" role="tabpanel" aria-labelledby="tab-lost">
       <!-- Mounted via views/lostfound.js -->
+    </section>
+
+    <!-- 5. DESKTOP ADMIN WORKSPACE SECTION (Multi-column, dense tables & split panel) -->
+    <section id="admin-view" class="view-section" role="tabpanel" aria-labelledby="tab-admin">
+      <!-- Mounted via views/admin.js -->
     </section>
 
   </main>
 
-  <!-- Mobile Fixed Bottom Glassmorphic Dock Navigation -->
-  <nav class="bottom-dock" aria-label="Bottom Navigation Dock">
-    <button type="button" class="dock-item active" data-view="home" aria-label="Home Overview">
+  <!-- Mobile Fixed Bottom Glassmorphic Dock Navigation (Hidden in Desktop Admin Workspace) -->
+  <nav class="bottom-dock" id="bottom-dock" aria-label="Bottom Navigation Dock" role="tablist">
+    <button type="button" class="dock-item active" id="tab-home" data-view="home" role="tab" aria-selected="true" aria-label="Home Overview">
       <span class="dock-icon">🏠</span>
       <span>Home</span>
     </button>
-    <button type="button" class="dock-item" data-view="planner" aria-label="Timetable Planner">
+    <button type="button" class="dock-item" id="tab-planner" data-view="planner" role="tab" aria-selected="false" aria-label="Timetable & Attendance Planner">
       <span class="dock-icon">📅</span>
       <span>Planner</span>
     </button>
-    <button type="button" class="dock-item" data-view="market" aria-label="Campus Marketplace">
+    <button type="button" class="dock-item" id="tab-market" data-view="market" role="tab" aria-selected="false" aria-label="Campus Marketplace">
       <span class="dock-icon">🛍️</span>
       <span>Market</span>
     </button>
-    <button type="button" class="dock-item" data-view="lost" aria-label="Lost and Found">
+    <button type="button" class="dock-item" id="tab-lost" data-view="lost" role="tab" aria-selected="false" aria-label="Lost and Found">
       <span class="dock-icon">🔍</span>
       <span>Lost</span>
+    </button>
+    <button type="button" class="dock-item" id="tab-admin" data-view="admin" role="tab" aria-selected="false" aria-label="Admin Workspace" style="display: none;">
+      <span class="dock-icon">⚙️</span>
+      <span>Admin</span>
     </button>
   </nav>
 

@@ -7,13 +7,14 @@
  * - Write-through cache invalidation via postMessage
  */
 
-const STATIC_CACHE_NAME = 'campushub-static-v2';
-const API_CACHE_NAME = 'campushub-api-v2';
+const STATIC_CACHE_NAME = 'campushub-static-v3';
+const API_CACHE_NAME = 'campushub-api-v3';
 
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/css/styles.css',
   '/css/tokens.css',
   '/css/reset.css',
   '/css/cards.css',
@@ -29,7 +30,8 @@ const STATIC_ASSETS = [
   '/js/views/home.js',
   '/js/views/planner.js',
   '/js/views/market.js',
-  '/js/views/lostfound.js'
+  '/js/views/lostfound.js',
+  '/js/views/admin.js'
 ];
 
 // Install: Pre-cache static shell assets

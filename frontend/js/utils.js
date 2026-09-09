@@ -32,8 +32,25 @@ export function computePercentage(attended, total) {
   return Math.round((attended / total) * 10000) / 100;
 }
 
+const MAX_VISIBLE_TOASTS = 3;
+const TOAST_DURATION_MS = 3000;
+
+/**
+ * Dismisses a single toast with an exit transition and DOM cleanup.
+ * @param {HTMLElement} toast
+ */
+export function dismissToast(toast) {
+  if (!toast || toast.classList.contains('toast-exit')) return;
+  toast.classList.add('toast-exit');
+  setTimeout(() => {
+    toast.remove();
+  }, 260);
+}
+
 /**
  * Surfaces non-intrusive auto-dismissing toast notifications.
+ * Automatically caps visible toasts at MAX_VISIBLE_TOASTS and dismisses after 3000ms.
+ * Also supports click-to-dismiss.
  * @param {string} message
  * @param {'info'|'success'|'error'} [type='info']
  */
@@ -47,19 +64,30 @@ export function showToast(message, type = 'info') {
     document.body.appendChild(container);
   }
 
+  // Prevent unbounded stacking: remove oldest toast if at limit
+  const activeToasts = container.querySelectorAll('.toast:not(.toast-exit)');
+  if (activeToasts.length >= MAX_VISIBLE_TOASTS) {
+    dismissToast(activeToasts[0]);
+  }
+
   const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
-  toast.textContent = message;
+  toast.className = `toast toast-${type} ${type}`;
+  toast.setAttribute('role', 'alert');
+  toast.innerHTML = `
+    <span class="toast-message">${escapeHtml(message)}</span>
+    <span class="toast-close" aria-label="Dismiss notification">✕</span>
+  `;
+
   container.appendChild(toast);
 
-  // Smooth entrance transition
-  requestAnimationFrame(() => {
-    toast.classList.add('toast-visible');
-  });
+  // Auto-dismiss after TOAST_DURATION_MS
+  const timer = setTimeout(() => {
+    dismissToast(toast);
+  }, TOAST_DURATION_MS);
 
-  // Auto-dismiss after 3000ms
-  setTimeout(() => {
-    toast.classList.remove('toast-visible');
-    toast.addEventListener('transitionend', () => toast.remove(), { once: true });
-  }, 3000);
+  // Click-to-dismiss handler
+  toast.addEventListener('click', () => {
+    clearTimeout(timer);
+    dismissToast(toast);
+  });
 }
