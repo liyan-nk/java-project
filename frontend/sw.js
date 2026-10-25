@@ -7,8 +7,8 @@
  * - Write-through cache invalidation via postMessage
  */
 
-const STATIC_CACHE_NAME = 'campushub-static-v3';
-const API_CACHE_NAME = 'campushub-api-v3';
+const STATIC_CACHE_NAME = 'campushub-static-v5';
+const API_CACHE_NAME = 'campushub-api-v5';
 
 const STATIC_ASSETS = [
   '/',
@@ -36,13 +36,13 @@ const STATIC_ASSETS = [
 
 // Install: Pre-cache static shell assets
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME).then((cache) => {
-      console.log('[SW] Pre-caching static assets for offline use');
+      console.log('[SW] Pre-caching static assets for offline use (v5)');
       return cache.addAll(STATIC_ASSETS);
     })
   );
-  self.skipWaiting();
 });
 
 // Activate: Purge obsolete cache generations
@@ -57,9 +57,8 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 // Fetch: Strict GET-only caching

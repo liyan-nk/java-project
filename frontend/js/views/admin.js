@@ -176,8 +176,8 @@ function renderClaimsQueue(container, state) {
                       <span class="status-pill ${statusClass}">${escapeHtml(item.status || 'OPEN')}</span>
                     </td>
                     <td>
-                      <button type="button" class="btn btn-sm quick-verify-btn" data-id="${item.id}" title="Quick Verify Claim">
-                        Verify
+                      <button type="button" class="btn btn-sm quick-verify-btn" data-id="${item.id}" title="Quick Verify Claim" ${item.status === 'CLAIMED' || item.status === 'RESOLVED' ? 'disabled' : ''}>
+                        ${item.status === 'CLAIMED' || item.status === 'RESOLVED' ? 'Claimed' : 'Verify'}
                       </button>
                     </td>
                   </tr>
@@ -223,8 +223,8 @@ function renderClaimsQueue(container, state) {
           </div>
 
           <div class="inspector-actions">
-            <button type="button" class="btn btn-success" id="inspector-verify-btn" data-id="${inspecting.id}" style="flex: 1;">
-              ✓ Approve & Resolve
+            <button type="button" class="btn btn-success" id="inspector-verify-btn" data-id="${inspecting.id}" style="flex: 1;" ${inspecting.status === 'CLAIMED' || inspecting.status === 'RESOLVED' ? 'disabled' : ''}>
+              ${inspecting.status === 'CLAIMED' || inspecting.status === 'RESOLVED' ? '✓ Resolved' : '✓ Approve & Resolve'}
             </button>
             <button type="button" class="btn btn-secondary" id="inspector-reset-btn" data-id="${inspecting.id}" style="flex: 1;">
               ↺ Reset to Open
@@ -320,8 +320,13 @@ function renderAuditTrail(container, state) {
   `;
 }
 
+let eventsBound = false;
+const pendingVerifications = new Set();
+let isBatchUpdating = false;
+
 function bindEvents() {
-  if (!viewContainer) return;
+  if (!viewContainer || eventsBound) return;
+  eventsBound = true;
 
   // 1. Subtab Switching & Return Navigation
   viewContainer.addEventListener('click', (e) => {
@@ -360,7 +365,7 @@ function bindEvents() {
 
     // 4. Quick Verify Button
     const verifyBtn = e.target.closest('.quick-verify-btn');
-    if (verifyBtn) {
+    if (verifyBtn && !verifyBtn.disabled) {
       const id = parseInt(verifyBtn.getAttribute('data-id'), 10);
       if (id) verifySingleClaim(id, 'CLAIMED');
       return;
@@ -368,14 +373,14 @@ function bindEvents() {
 
     // 5. Inspector Actions
     const inspectorVerify = e.target.closest('#inspector-verify-btn');
-    if (inspectorVerify) {
+    if (inspectorVerify && !inspectorVerify.disabled) {
       const id = parseInt(inspectorVerify.getAttribute('data-id'), 10);
       if (id) verifySingleClaim(id, 'CLAIMED');
       return;
     }
 
     const inspectorReset = e.target.closest('#inspector-reset-btn');
-    if (inspectorReset) {
+    if (inspectorReset && !inspectorReset.disabled) {
       const id = parseInt(inspectorReset.getAttribute('data-id'), 10);
       if (id) verifySingleClaim(id, 'OPEN');
       return;
@@ -383,20 +388,20 @@ function bindEvents() {
 
     // 6. Batch Verify / Reject
     const batchVerifyBtn = e.target.closest('#batch-verify-btn');
-    if (batchVerifyBtn) {
+    if (batchVerifyBtn && !batchVerifyBtn.disabled) {
       handleBatchAction('CLAIMED');
       return;
     }
 
     const batchRejectBtn = e.target.closest('#batch-reject-btn');
-    if (batchRejectBtn) {
+    if (batchRejectBtn && !batchRejectBtn.disabled) {
       handleBatchAction('OPEN');
       return;
     }
 
     // 7. Delete Marketplace Listing
     const deleteListingBtn = e.target.closest('.delete-listing-btn');
-    if (deleteListingBtn) {
+    if (deleteListingBtn && !deleteListingBtn.disabled) {
       const id = parseInt(deleteListingBtn.getAttribute('data-id'), 10);
       if (id) {
         store.deleteMarketplaceItem(id);
@@ -433,6 +438,13 @@ function bindEvents() {
 }
 
 async function verifySingleClaim(id, newStatus) {
+  if (pendingVerifications.has(id)) return;
+  pendingVerifications.add(id);
+
+  // Disable matching action buttons while processing
+  const actionBtns = viewContainer ? viewContainer.querySelectorAll(`.quick-verify-btn[data-id="${id}"], #inspector-verify-btn[data-id="${id}"], #inspector-reset-btn[data-id="${id}"]`) : [];
+  actionBtns.forEach((btn) => (btn.disabled = true));
+
   try {
     const res = await api.claimLostFoundItem(id, newStatus);
     store.updateClaimStatus(id, newStatus);
@@ -442,13 +454,18 @@ async function verifySingleClaim(id, newStatus) {
     // Optimistically update anyway for smooth admin UX if offline
     store.updateClaimStatus(id, newStatus);
     showToast(`Updated claim #${id} status to ${newStatus}`, 'success');
+  } finally {
+    pendingVerifications.delete(id);
+    actionBtns.forEach((btn) => (btn.disabled = false));
   }
 }
 
 async function handleBatchAction(newStatus) {
+  if (isBatchUpdating) return;
   const selectedIds = Array.from(store.getState().selectedClaimIds);
   if (selectedIds.length === 0) return;
 
+  isBatchUpdating = true;
   const count = selectedIds.length;
   try {
     await Promise.all(selectedIds.map((id) => api.claimLostFoundItem(id, newStatus).catch(() => null)));
@@ -459,5 +476,7 @@ async function handleBatchAction(newStatus) {
     selectedIds.forEach((id) => store.updateClaimStatus(id, newStatus));
     store.clearSelectedClaims();
     showToast(`Batch updated ${count} claims`, 'success');
+  } finally {
+    isBatchUpdating = false;
   }
 }

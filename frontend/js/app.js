@@ -88,10 +88,15 @@ function updateHeaderUserBadge(user) {
   }
 }
 
+let roleSwitcherBound = false;
+
 /**
  * Binds interactive click to toggle user role between STUDENT and ADMIN
  */
 function initRoleSwitcher() {
+  if (roleSwitcherBound) return;
+  roleSwitcherBound = true;
+
   const badge = document.getElementById('user-profile-badge');
   if (badge) {
     badge.addEventListener('click', () => {

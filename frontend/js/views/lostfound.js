@@ -178,8 +178,11 @@ export function render(state) {
   }).join('');
 }
 
+let eventsBound = false;
+
 function bindEvents() {
-  if (!viewContainer) return;
+  if (!viewContainer || eventsBound) return;
+  eventsBound = true;
 
   // 1. Filter Bar
   const filterBar = viewContainer.querySelector('#lost-filter-bar');
