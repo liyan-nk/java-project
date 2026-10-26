@@ -7,13 +7,14 @@
  * - Write-through cache invalidation via postMessage
  */
 
-const STATIC_CACHE_NAME = 'campushub-static-v2';
-const API_CACHE_NAME = 'campushub-api-v2';
+const STATIC_CACHE_NAME = 'campushub-static-v5';
+const API_CACHE_NAME = 'campushub-api-v5';
 
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/css/styles.css',
   '/css/tokens.css',
   '/css/reset.css',
   '/css/cards.css',
@@ -29,18 +30,19 @@ const STATIC_ASSETS = [
   '/js/views/home.js',
   '/js/views/planner.js',
   '/js/views/market.js',
-  '/js/views/lostfound.js'
+  '/js/views/lostfound.js',
+  '/js/views/admin.js'
 ];
 
 // Install: Pre-cache static shell assets
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(STATIC_CACHE_NAME).then((cache) => {
-      console.log('[SW] Pre-caching static assets for offline use');
+      console.log('[SW] Pre-caching static assets for offline use (v5)');
       return cache.addAll(STATIC_ASSETS);
     })
   );
-  self.skipWaiting();
 });
 
 // Activate: Purge obsolete cache generations
@@ -55,9 +57,8 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    })
+    }).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 // Fetch: Strict GET-only caching

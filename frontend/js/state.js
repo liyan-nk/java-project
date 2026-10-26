@@ -1,18 +1,20 @@
 /**
  * CampusHub Reactive Observable Store
  * Manages client application state, optimistic UI mutations, server reconciliations,
- * and direct in-memory appends for modal creation actions.
+ * role management (STUDENT / ADMIN), and admin workspace selections.
  */
 import { computePercentage } from './utils.js';
 
 class Store {
   constructor() {
+    const savedRole = localStorage.getItem('campushub-role') || 'STUDENT';
+
     this.state = {
       currentUser: {
         id: 2, // John Doe default seed
         name: 'John Doe',
         email: 'john.doe@campus.edu',
-        role: 'STUDENT',
+        role: savedRole,
         avatarUrl: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John'
       },
       activeTab: 'home',
@@ -23,8 +25,12 @@ class Store {
       filters: {
         marketCategory: 'ALL',
         lostType: 'ALL',
-        timetableDay: 'TODAY'
+        timetableDay: 'ALL',
+        adminSubTab: 'claims' // 'claims' | 'market' | 'audit'
       },
+      // Admin batch selections & inspection
+      selectedClaimIds: new Set(),
+      inspectingItemId: null,
       // Per-record in-flight locks to disable steppers and action buttons
       pendingAttendanceIds: new Set(),
       pendingClaimIds: new Set(),
@@ -40,27 +46,15 @@ class Store {
     this.subscribers = new Set();
   }
 
-  /**
-   * Returns current state snapshot.
-   */
   getState() {
     return this.state;
   }
 
-  /**
-   * Subscribes a listener callback to state updates.
-   * @param {Function} listener (state, changedKeys) => void
-   * @returns {Function} Unsubscribe handle
-   */
   subscribe(listener) {
     this.subscribers.add(listener);
     return () => this.subscribers.delete(listener);
   }
 
-  /**
-   * Merges partial state and notifies subscribers.
-   * @param {Object} partialState
-   */
   setState(partialState) {
     this.state = { ...this.state, ...partialState };
     this.notify(Object.keys(partialState));
@@ -76,7 +70,31 @@ class Store {
     }
   }
 
-  // --- Mutators & Actions ---
+  // --- Role Actions ---
+
+  toggleUserRole() {
+    const newRole = this.state.currentUser.role === 'ADMIN' ? 'STUDENT' : 'ADMIN';
+    this.setUserRole(newRole);
+    return newRole;
+  }
+
+  setUserRole(role) {
+    const updatedUser = { ...this.state.currentUser, role };
+    localStorage.setItem('campushub-role', role);
+    document.documentElement.setAttribute('data-role', role);
+
+    // If switching to ADMIN on desktop, switch to admin view if requested
+    let nextTab = this.state.activeTab;
+    if (role === 'ADMIN' && window.innerWidth >= 1024 && this.state.activeTab === 'home') {
+      nextTab = 'admin';
+    } else if (role === 'STUDENT' && this.state.activeTab === 'admin') {
+      nextTab = 'home';
+    }
+
+    this.setState({ currentUser: updatedUser, activeTab: nextTab });
+  }
+
+  // --- Navigation & Filter Actions ---
 
   setActiveTab(tabName) {
     if (this.state.activeTab !== tabName) {
@@ -84,27 +102,25 @@ class Store {
     }
   }
 
+  setAdminSubTab(subTab) {
+    this.setState({
+      filters: { ...this.state.filters, adminSubTab: subTab }
+    });
+  }
+
   setCurrentUser(user) {
-    this.setState({ currentUser: user });
+    const role = localStorage.getItem('campushub-role') || user.role || 'STUDENT';
+    this.setState({ currentUser: { ...user, role } });
   }
 
   setTimetable(timetable) {
     this.setState({ timetable: timetable || [] });
   }
 
-  /**
-   * Appends newly created timetable entry directly to local state without refetch.
-   * @param {Object} entry
-   */
   addTimetableEntry(entry) {
     this.setState({ timetable: [...this.state.timetable, entry] });
   }
 
-  /**
-   * Normalizes attendance records so that `percentage` is ALWAYS guaranteed
-   * and computed client-side.
-   * @param {Array} rawAttendance
-   */
   setAttendance(rawAttendance) {
     const normalized = (rawAttendance || []).map((rec) => ({
       ...rec,
@@ -117,16 +133,22 @@ class Store {
     this.setState({ marketplace: marketplace || [] });
   }
 
-  /**
-   * Prepends newly created marketplace item directly to local state without refetch.
-   * @param {Object} item
-   */
   addMarketplaceItem(item) {
     this.setState({ marketplace: [item, ...this.state.marketplace] });
   }
 
+  deleteMarketplaceItem(id) {
+    this.setState({
+      marketplace: this.state.marketplace.filter((m) => m.id !== id)
+    });
+  }
+
   setLostFound(lostfound) {
     this.setState({ lostfound: lostfound || [] });
+  }
+
+  addLostFoundItem(item) {
+    this.setState({ lostfound: [item, ...this.state.lostfound] });
   }
 
   setMarketFilter(category) {
@@ -141,15 +163,48 @@ class Store {
     });
   }
 
-  // --- Optimistic UI & Server Reconciliation Helpers ---
+  setTimetableDay(day) {
+    this.setState({
+      filters: { ...this.state.filters, timetableDay: day }
+    });
+  }
 
-  /**
-   * Optimistically increments attendance and locks the stepper button.
-   * Returns a rollback callback.
-   * @param {number} id
-   * @param {boolean} attended
-   * @returns {Function} rollback
-   */
+  // --- Admin Batch Selection & Inspection ---
+
+  toggleSelectClaim(id) {
+    const nextSet = new Set(this.state.selectedClaimIds);
+    if (nextSet.has(id)) {
+      nextSet.delete(id);
+    } else {
+      nextSet.add(id);
+    }
+    this.setState({ selectedClaimIds: nextSet });
+  }
+
+  selectAllClaims(allIds) {
+    this.setState({ selectedClaimIds: new Set(allIds) });
+  }
+
+  clearSelectedClaims() {
+    this.setState({ selectedClaimIds: new Set() });
+  }
+
+  setInspectingItemId(id) {
+    this.setState({ inspectingItemId: id });
+  }
+
+  updateClaimStatus(id, newStatus) {
+    const updated = this.state.lostfound.map((item) => {
+      if (item.id === id) {
+        return { ...item, status: newStatus };
+      }
+      return item;
+    });
+    this.setState({ lostfound: updated });
+  }
+
+  // --- Optimistic UI Helpers ---
+
   optimisticStepAttendance(id, attended) {
     const previousList = [...this.state.attendance];
     const newPending = new Set(this.state.pendingAttendanceIds);
@@ -178,12 +233,6 @@ class Store {
     };
   }
 
-  /**
-   * Reconciles the optimistic attendance record with the canonical server response.
-   * Clears the pending lock.
-   * @param {number} id
-   * @param {Object} serverRecord
-   */
   reconcileStepAttendance(id, serverRecord) {
     const newPending = new Set(this.state.pendingAttendanceIds);
     newPending.delete(id);
@@ -203,12 +252,6 @@ class Store {
     this.setState({ attendance: reconciled, pendingAttendanceIds: newPending });
   }
 
-  /**
-   * Optimistically marks a lost/found item as claimed and locks the claim button.
-   * Returns a rollback callback.
-   * @param {number} id
-   * @returns {Function} rollback
-   */
   optimisticClaimItem(id) {
     const previousList = [...this.state.lostfound];
     const newPending = new Set(this.state.pendingClaimIds);
@@ -230,11 +273,6 @@ class Store {
     };
   }
 
-  /**
-   * Reconciles the claimed item with the canonical server response.
-   * @param {number} id
-   * @param {Object} serverItem
-   */
   reconcileClaimItem(id, serverItem) {
     const newPending = new Set(this.state.pendingClaimIds);
     newPending.delete(id);

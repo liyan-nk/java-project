@@ -1,6 +1,7 @@
 /**
  * Planner View Module (Timetable & Attendance Stepper)
- * Implements the Uniform View Module Contract: { init, render }
+ * Strictly Mobile-First with touch-optimized targets (min 44x44px),
+ * horizontal snap-scrolling timetable schedule, and dynamic threshold borders.
  */
 import { escapeHtml, computePercentage, showToast } from '../utils.js';
 import { store } from '../state.js';
@@ -14,46 +15,49 @@ export function init(container) {
 
   viewContainer.innerHTML = `
     <!-- Timetable Section -->
-    <div class="section-title">
+    <div class="section-header">
       <div>
-        <span>Course Timetable</span>
-        <div class="section-subtitle">Weekly class schedule</div>
+        <h2 class="section-title">Course Timetable</h2>
+        <div class="section-subtitle">Weekly class schedule & lecture halls</div>
       </div>
-      <button id="add-class-btn" class="btn btn-sm">+ Add Class</button>
+      <button type="button" id="add-class-btn" class="btn btn-sm">+ Add Class</button>
     </div>
 
-    <!-- Weekday Filter Pills -->
-    <div class="filter-bar" id="timetable-filter-bar">
-      <button class="filter-pill active" data-day="ALL">All Days</button>
-      <button class="filter-pill" data-day="MONDAY">Mon</button>
-      <button class="filter-pill" data-day="TUESDAY">Tue</button>
-      <button class="filter-pill" data-day="WEDNESDAY">Wed</button>
-      <button class="filter-pill" data-day="THURSDAY">Thu</button>
-      <button class="filter-pill" data-day="FRIDAY">Fri</button>
+    <!-- Weekday Filter Chips (Mon - Sat) -->
+    <div class="filter-bar" id="timetable-filter-bar" role="tablist" aria-label="Filter schedule by weekday">
+      <button type="button" class="filter-pill active" data-day="ALL" role="tab" aria-selected="true">All Days</button>
+      <button type="button" class="filter-pill" data-day="MONDAY" role="tab" aria-selected="false">Mon</button>
+      <button type="button" class="filter-pill" data-day="TUESDAY" role="tab" aria-selected="false">Tue</button>
+      <button type="button" class="filter-pill" data-day="WEDNESDAY" role="tab" aria-selected="false">Wed</button>
+      <button type="button" class="filter-pill" data-day="THURSDAY" role="tab" aria-selected="false">Thu</button>
+      <button type="button" class="filter-pill" data-day="FRIDAY" role="tab" aria-selected="false">Fri</button>
+      <button type="button" class="filter-pill" data-day="SATURDAY" role="tab" aria-selected="false">Sat</button>
     </div>
 
-    <div id="timetable-list-container">
-      <!-- Dynamic Timetable -->
+    <!-- Horizontal Snap-Scroll Timetable Cards Container -->
+    <div id="timetable-list-container" class="schedule-scroll-container" aria-live="polite">
+      <!-- Dynamic Timetable Cards -->
     </div>
 
     <!-- Attendance Section -->
-    <div class="section-title" style="margin-top: 28px;">
+    <div class="section-header" style="margin-top: 32px;">
       <div>
-        <span>Attendance Tracker</span>
-        <div class="section-subtitle">Tap +/- to log attendance</div>
+        <h2 class="section-title">Attendance Tracker</h2>
+        <div class="section-subtitle">Tap touch-steppers (+/-) to record class presence</div>
       </div>
     </div>
 
-    <div id="attendance-list-container">
-      <!-- Dynamic Attendance -->
+    <!-- Attendance Grid with Touch Steppers -->
+    <div id="attendance-list-container" class="attendance-grid" aria-live="polite">
+      <!-- Dynamic Attendance Cards -->
     </div>
 
     <!-- Modal Dialog: Add Class -->
-    <div id="add-class-modal" class="modal-backdrop">
+    <div id="add-class-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="add-class-modal-title">
       <div class="modal-sheet">
         <div class="modal-header">
-          <h3 class="modal-title">Add Timetable Class</h3>
-          <button type="button" class="modal-close-btn" id="close-class-modal-btn">✕</button>
+          <h3 class="modal-title" id="add-class-modal-title">Add Timetable Class</h3>
+          <button type="button" class="modal-close-btn" id="close-class-modal-btn" aria-label="Close modal">✕</button>
         </div>
         <form id="add-class-form">
           <div class="form-group">
@@ -64,17 +68,18 @@ export function init(container) {
               <option value="WEDNESDAY">Wednesday</option>
               <option value="THURSDAY">Thursday</option>
               <option value="FRIDAY">Friday</option>
+              <option value="SATURDAY">Saturday</option>
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label" for="class-subject">Subject</label>
-            <input type="text" id="class-subject" class="form-input" placeholder="e.g. Advanced Operating Systems" required maxlength="80">
+            <label class="form-label" for="class-subject">Subject Title</label>
+            <input type="text" id="class-subject" class="form-input" placeholder="e.g. Distributed Systems & Cloud Computing" required maxlength="80">
           </div>
           <div class="form-group">
-            <label class="form-label" for="class-room">Room / Location</label>
-            <input type="text" id="class-room" class="form-input" placeholder="e.g. Science Complex 402" required maxlength="40">
+            <label class="form-label" for="class-room">Room / Lecture Hall</label>
+            <input type="text" id="class-room" class="form-input" placeholder="e.g. Science Complex Hall B" required maxlength="40">
           </div>
-          <div class="grid-2">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
             <div class="form-group">
               <label class="form-label" for="class-start">Start Time</label>
               <input type="time" id="class-start" class="form-input" value="09:00" required>
@@ -100,214 +105,220 @@ export function init(container) {
   bindEvents();
 }
 
+export function render(state) {
+  if (!viewContainer) return;
+
+  const timetableContainer = viewContainer.querySelector('#timetable-list-container');
+  const attendanceContainer = viewContainer.querySelector('#attendance-list-container');
+
+  // 1. Render Timetable Schedule Cards
+  if (timetableContainer) {
+    const timetable = state.timetable || [];
+    const filteredTimetable = activeDayFilter === 'ALL'
+      ? timetable
+      : timetable.filter((item) => (item.dayOfWeek || '').toUpperCase() === activeDayFilter);
+
+    if (filteredTimetable.length === 0) {
+      timetableContainer.innerHTML = `
+        <div style="width: 100%; text-align: center; padding: 36px 16px; color: var(--text-muted); background: var(--bg-surface); border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+          <span style="font-size: 2rem; display: block; margin-bottom: 8px;">📅</span>
+          <strong>No classes scheduled for this day</strong>
+          <p style="font-size: 0.85rem; margin-top: 4px;">Tap "+ Add Class" above to create an entry.</p>
+        </div>
+      `;
+    } else {
+      timetableContainer.innerHTML = filteredTimetable.map((item) => `
+        <article class="timetable-card" tabindex="0">
+          <div class="timetable-header">
+            <h3 class="timetable-subject">${escapeHtml(item.subject)}</h3>
+            <span class="timetable-time-pill">${escapeHtml(item.startTime)} - ${escapeHtml(item.endTime)}</span>
+          </div>
+          <div class="timetable-meta">
+            <div class="timetable-meta-item">
+              <span>🏛️</span>
+              <strong>${escapeHtml(item.room || 'TBD')}</strong>
+            </div>
+            <div class="timetable-meta-item">
+              <span>👨‍🏫</span>
+              <span>${escapeHtml(item.instructor || 'Staff')}</span>
+            </div>
+            <div class="timetable-meta-item" style="margin-top: 4px;">
+              <span class="role-pill" style="font-size: 0.7rem;">${escapeHtml(item.dayOfWeek)}</span>
+            </div>
+          </div>
+        </article>
+      `).join('');
+    }
+  }
+
+  // 2. Render Attendance Cards with 44x44px Steppers
+  if (attendanceContainer) {
+    const attendance = state.attendance || [];
+    const pendingIds = state.pendingAttendanceIds || new Set();
+
+    if (attendance.length === 0) {
+      attendanceContainer.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 36px; color: var(--text-muted); background: var(--bg-surface); border-radius: var(--radius-md); border: 1px solid var(--border-subtle);">
+          <span style="font-size: 2rem; display: block; margin-bottom: 8px;">📊</span>
+          <strong>No attendance records registered</strong>
+        </div>
+      `;
+    } else {
+      attendanceContainer.innerHTML = attendance.map((rec) => {
+        const total = rec.totalClasses || 0;
+        const attended = rec.attendedClasses || 0;
+        const percentage = computePercentage(attended, total);
+        const target = rec.targetPercentage || 75.0;
+        const isLow = percentage < target;
+        const isPending = pendingIds.has(rec.id);
+
+        return `
+          <article class="attendance-card ${isLow ? 'danger' : 'safe'}" data-id="${rec.id}">
+            <div class="attendance-card-header">
+              <h3 class="attendance-subject">${escapeHtml(rec.subject)}</h3>
+              <span class="attendance-pill ${isLow ? 'danger' : 'safe'}" title="Target: ${target}%">
+                ${isLow ? '⚠️ ' : '✓ '}${percentage}%
+              </span>
+            </div>
+
+            <!-- Progress Track -->
+            <div class="attendance-progress-track">
+              <div class="attendance-progress-fill ${isLow ? 'danger' : 'safe'}" style="width: ${Math.min(100, Math.max(0, percentage))}%"></div>
+            </div>
+
+            <!-- Stepper Row -->
+            <div class="attendance-stepper-row">
+              <div>
+                <div class="attendance-ratio">${attended} / ${total} Classes</div>
+                <div class="attendance-ratio-sub">Target: ${target}% • ${isLow ? 'Action required' : 'On track'}</div>
+              </div>
+
+              <!-- 44x44px Minimum Touch Steppers -->
+              <div class="stepper-controls">
+                <button type="button" class="stepper-btn attendance-step-btn" 
+                  data-id="${rec.id}" 
+                  data-attended="false" 
+                  ${isPending ? 'disabled' : ''}
+                  aria-label="Log class missed for ${escapeHtml(rec.subject)}"
+                  title="Mark Missed (+1 Total, +0 Attended)">
+                  -
+                </button>
+                <button type="button" class="stepper-btn attendance-step-btn" 
+                  data-id="${rec.id}" 
+                  data-attended="true" 
+                  ${isPending ? 'disabled' : ''}
+                  aria-label="Log class attended for ${escapeHtml(rec.subject)}"
+                  title="Mark Attended (+1 Total, +1 Attended)">
+                  +
+                </button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+  }
+}
+
 function bindEvents() {
-  // 1. Day of Week Filter Bar
+  if (!viewContainer) return;
+
+  // 1. Weekday Filter Pills
   const filterBar = viewContainer.querySelector('#timetable-filter-bar');
   if (filterBar) {
     filterBar.addEventListener('click', (e) => {
       const btn = e.target.closest('.filter-pill');
       if (!btn) return;
 
-      filterBar.querySelectorAll('.filter-pill').forEach((p) => p.classList.remove('active'));
+      filterBar.querySelectorAll('.filter-pill').forEach((p) => {
+        p.classList.remove('active');
+        p.setAttribute('aria-selected', 'false');
+      });
       btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
       activeDayFilter = btn.getAttribute('data-day') || 'ALL';
       render(store.getState());
     });
   }
 
-  // 2. Stepper Delegate for Attendance (+ / -)
-  const attendanceContainer = viewContainer.querySelector('#attendance-list-container');
-  if (attendanceContainer) {
-    attendanceContainer.addEventListener('click', async (e) => {
-      const stepBtn = e.target.closest('.step-btn');
-      if (!stepBtn || stepBtn.hasAttribute('disabled')) return;
+  // 2. Stepper Button Event Delegation (+ / -)
+  const attendanceList = viewContainer.querySelector('#attendance-list-container');
+  if (attendanceList) {
+    attendanceList.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.attendance-step-btn');
+      if (!btn || btn.hasAttribute('disabled')) return;
 
-      const recordId = parseInt(stepBtn.getAttribute('data-id'), 10);
-      const isAttended = stepBtn.getAttribute('data-step') === 'plus';
+      const recordId = parseInt(btn.getAttribute('data-id'), 10);
+      const attended = btn.getAttribute('data-attended') === 'true';
 
       if (!recordId) return;
 
-      // Optimistic stepping with pending lock
-      const rollback = store.optimisticStepAttendance(recordId, isAttended);
+      // Optimistic step update
+      const rollback = store.optimisticStepAttendance(recordId, attended);
 
       try {
-        const serverRecord = await api.stepAttendance(recordId, isAttended);
+        const serverRecord = await api.stepAttendance(recordId, attended);
         store.reconcileStepAttendance(recordId, serverRecord);
+        showToast(attended ? 'Class attended logged! 📈' : 'Class absent logged 📉', 'info');
       } catch (err) {
+        console.error('Failed to log attendance step:', err);
         rollback();
-        showToast('Failed to update attendance. Please try again.', 'error');
+        showToast('Failed to record attendance. Please try again.', 'error');
       }
     });
   }
 
   // 3. Modal Controls: Add Class
   const modal = viewContainer.querySelector('#add-class-modal');
-  const addBtn = viewContainer.querySelector('#add-class-btn');
+  const openBtn = viewContainer.querySelector('#add-class-btn');
   const closeBtn = viewContainer.querySelector('#close-class-modal-btn');
   const cancelBtn = viewContainer.querySelector('#cancel-class-modal-btn');
   const form = viewContainer.querySelector('#add-class-form');
 
-  const openModal = () => modal && modal.classList.add('active');
+  const openModal = () => modal?.classList.add('open');
   const closeModal = () => {
-    if (modal) modal.classList.remove('active');
-    if (form) form.reset();
+    modal?.classList.remove('open');
+    form?.reset();
   };
 
-  if (addBtn) addBtn.addEventListener('click', openModal);
-  if (closeBtn) closeBtn.addEventListener('click', closeModal);
-  if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+  openBtn?.addEventListener('click', openModal);
+  closeBtn?.addEventListener('click', closeModal);
+  cancelBtn?.addEventListener('click', closeModal);
 
-  if (form) {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const submitBtn = viewContainer.querySelector('#submit-class-btn');
-      if (submitBtn) submitBtn.setAttribute('disabled', 'true');
+  modal?.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
 
-      const currentUser = store.getState().currentUser;
-      const payload = {
-        userId: currentUser.id,
-        dayOfWeek: viewContainer.querySelector('#class-day').value,
-        subject: viewContainer.querySelector('#class-subject').value.trim(),
-        room: viewContainer.querySelector('#class-room').value.trim(),
-        startTime: viewContainer.querySelector('#class-start').value,
-        endTime: viewContainer.querySelector('#class-end').value,
-        instructor: viewContainer.querySelector('#class-instructor').value.trim()
-      };
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const currentUser = store.getState().currentUser;
 
-      try {
-        const mergedEntry = await api.createTimetableEntry(payload);
-        store.addTimetableEntry(mergedEntry);
-        closeModal();
-        showToast('Class added to timetable!', 'success');
-      } catch (err) {
-        showToast('Failed to add class. Please try again.', 'error');
-      } finally {
-        if (submitBtn) submitBtn.removeAttribute('disabled');
-      }
-    });
-  }
-}
+    const payload = {
+      userId: currentUser?.id || 2,
+      dayOfWeek: viewContainer.querySelector('#class-day').value,
+      subject: viewContainer.querySelector('#class-subject').value.trim(),
+      room: viewContainer.querySelector('#class-room').value.trim(),
+      startTime: viewContainer.querySelector('#class-start').value,
+      endTime: viewContainer.querySelector('#class-end').value,
+      instructor: viewContainer.querySelector('#class-instructor').value.trim()
+    };
 
-export function render(state) {
-  if (!viewContainer) return;
+    const submitBtn = viewContainer.querySelector('#submit-class-btn');
+    if (submitBtn) submitBtn.disabled = true;
 
-  renderTimetable(state);
-  renderAttendance(state);
-}
-
-function renderTimetable(state) {
-  const container = viewContainer.querySelector('#timetable-list-container');
-  if (!container) return;
-
-  if (state.loading.timetable) {
-    container.innerHTML = `
-      <div class="loading">
-        <div class="skeleton-card"><div class="skeleton-line w-full"></div></div>
-        <div class="skeleton-card"><div class="skeleton-line w-full"></div></div>
-      </div>
-    `;
-    return;
-  }
-
-  let items = state.timetable || [];
-  if (activeDayFilter !== 'ALL') {
-    items = items.filter((item) => item.dayOfWeek && item.dayOfWeek.toUpperCase() === activeDayFilter);
-  }
-
-  if (items.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">📅</div>
-        <div class="empty-title">No Classes Found</div>
-        <div class="empty-desc">No classes scheduled for ${escapeHtml(activeDayFilter)}. Tap "+ Add Class" above.</div>
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML = items.map((item) => `
-    <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
-      <div>
-        <span class="badge badge-blue">${escapeHtml(item.dayOfWeek)}</span>
-        <h4 style="font-size: 1rem; margin-top: 6px; font-weight: 600;">${escapeHtml(item.subject)}</h4>
-        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;">
-          📍 ${escapeHtml(item.room)} • 👨‍🏫 ${escapeHtml(item.instructor)}
-        </p>
-      </div>
-      <div style="text-align: right; font-weight: 600; font-size: 0.9rem; color: var(--accent-color); white-space: nowrap;">
-        ${escapeHtml(item.startTime)} - ${escapeHtml(item.endTime)}
-      </div>
-    </div>
-  `).join('');
-}
-
-function renderAttendance(state) {
-  const container = viewContainer.querySelector('#attendance-list-container');
-  if (!container) return;
-
-  if (state.loading.attendance) {
-    container.innerHTML = `
-      <div class="loading">
-        <div class="skeleton-card"><div class="skeleton-line w-full"></div></div>
-      </div>
-    `;
-    return;
-  }
-
-  const records = state.attendance || [];
-  if (records.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">📈</div>
-        <div class="empty-title">No Attendance Records</div>
-        <div class="empty-desc">No course attendance registered for this account.</div>
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML = records.map((rec) => {
-    const percentage = computePercentage(rec.attendedClasses, rec.totalClasses);
-    const target = rec.targetPercentage || 75;
-    const isSafe = percentage >= target;
-    const isPending = state.pendingAttendanceIds.has(rec.id);
-
-    return `
-      <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
-        <div style="flex: 1; padding-right: 14px;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span class="badge ${isSafe ? 'badge-green' : 'badge-orange'}">${percentage}%</span>
-            <span style="font-size: 0.75rem; color: var(--text-secondary);">Target: ${target}%</span>
-          </div>
-          <h4 style="font-size: 0.95rem; margin-top: 6px; font-weight: 600;">${escapeHtml(rec.subject)}</h4>
-          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">
-            ${rec.attendedClasses} of ${rec.totalClasses} classes attended
-          </p>
-          <div class="progress-container" style="margin-top: 8px;">
-            <div class="progress-bar ${isSafe ? 'safe' : 'warning'}" style="width: ${Math.min(percentage, 100)}%;"></div>
-          </div>
-        </div>
-        <div class="step-btn-group">
-          <button 
-            type="button" 
-            class="step-btn ${isPending ? 'disabled' : ''}" 
-            data-id="${rec.id}" 
-            data-step="minus" 
-            ${isPending ? 'disabled' : ''} 
-            title="Log Missed Class"
-            aria-label="Log Missed Class"
-          >−</button>
-          <button 
-            type="button" 
-            class="step-btn ${isPending ? 'disabled' : ''}" 
-            data-id="${rec.id}" 
-            data-step="plus" 
-            ${isPending ? 'disabled' : ''} 
-            title="Log Attended Class"
-            aria-label="Log Attended Class"
-          >+</button>
-        </div>
-      </div>
-    `;
-  }).join('');
+    try {
+      const created = await api.createTimetableEntry(payload);
+      store.addTimetableEntry({
+        ...payload,
+        id: created?.id || Date.now()
+      });
+      showToast('New class successfully added to schedule!', 'success');
+      closeModal();
+    } catch (err) {
+      console.error('Failed to create timetable entry:', err);
+      showToast('Failed to add class. Please check inputs.', 'error');
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  });
 }
