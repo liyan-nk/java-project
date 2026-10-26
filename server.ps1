@@ -36,9 +36,12 @@ $attendanceState = [System.Collections.ArrayList]@(
 )
 
 $marketplaceState = [System.Collections.ArrayList]@(
-    [ordered]@{ id = 1; sellerId = 2; sellerName = "John Doe"; title = "Calculus 4th Edition (Stewart)"; description = "Clean copy, minimal highlighting, required for MATH 201."; price = 35.00; category = "TEXTBOOKS"; status = "AVAILABLE"; imageUrl = "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400" },
-    [ordered]@{ id = 2; sellerId = 1; sellerName = "Campus Store"; title = "TI-84 Plus CE Graphing Calculator"; description = "Great battery life, includes charging cable."; price = 65.00; category = "TECH"; status = "AVAILABLE"; imageUrl = "https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?w=400" },
-    [ordered]@{ id = 3; sellerId = 3; sellerName = "Sarah Jenkins"; title = "LED Desk Lamp with USB Charging"; description = "Adjustable warmth and brightness, perfect for study."; price = 15.00; category = "DORM"; status = "AVAILABLE"; imageUrl = "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=400" }
+    [ordered]@{ id = 1; sellerId = 3; sellerName = "Jane Smith"; title = "Calculus 4th Edition (Stewart)"; description = "Clean copy, minimal highlighting, required for MATH 201."; price = 35.00; category = "TEXTBOOKS"; status = "AVAILABLE"; imageUrl = "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=500"; sellerDepartment = "Department of Mathematics & Statistics"; sellerYear = "Senior (Year 4 / Sem 7)"; sellerPhone = "+1 (555) 234-5678"; sellerEmail = "jane.smith@campus.edu"; sellerWhatsapp = "+15552345678"; sellerAvatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=Jane" },
+    [ordered]@{ id = 2; sellerId = 2; sellerName = "John Doe"; title = "TI-84 Plus CE Graphing Calculator"; description = "Great battery life, includes charging cable and protective slip case."; price = 65.00; category = "TECH"; status = "AVAILABLE"; imageUrl = "https://images.unsplash.com/photo-1594980596870-8aa52a78d8cd?w=500"; sellerDepartment = "Computer Science & Engineering"; sellerYear = "Senior (Year 4 / Sem 8)"; sellerPhone = "+1 (555) 987-6543"; sellerEmail = "john.doe@campus.edu"; sellerWhatsapp = "+15559876543"; sellerAvatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=John" },
+    [ordered]@{ id = 3; sellerId = 1; sellerName = "Campus Store"; title = "LED Desk Lamp with USB Charging"; description = "Adjustable warmth and brightness, perfect for study."; price = 15.00; category = "DORM"; status = "AVAILABLE"; imageUrl = "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=500"; sellerDepartment = "Student Union & Campus Services"; sellerYear = "Official Campus Store"; sellerPhone = "+1 (555) 789-0123"; sellerEmail = "store@campushub.edu"; sellerWhatsapp = $null; sellerAvatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=Store" },
+    [ordered]@{ id = 4; sellerId = 4; sellerName = "Alex Rivera"; title = "North Face Borealis Campus Backpack"; description = "Water-resistant 28L backpack with padded laptop sleeve."; price = 45.00; category = "GENERAL"; status = "AVAILABLE"; imageUrl = "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500"; sellerDepartment = "Electrical & Electronic Engineering"; sellerYear = "Senior (Year 4 / Sem 7)"; sellerPhone = "+1 (555) 432-8765"; sellerEmail = "a.rivera@campus.edu"; sellerWhatsapp = "+15554328765"; sellerAvatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" },
+    [ordered]@{ id = 5; sellerId = 5; sellerName = "Priya Sharma"; title = "Sony WH-1000XM4 Noise Canceling Headphones"; description = "Like new with original travel case, audio cable, and USB-C cable."; price = 95.00; category = "TECH"; status = "AVAILABLE"; imageUrl = "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500"; sellerDepartment = "Biomedical Engineering"; sellerYear = "Senior (Year 3 / Sem 6)"; sellerPhone = $null; sellerEmail = "psharma@campus.edu"; sellerWhatsapp = "+15556781234"; sellerAvatarUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=Priya" },
+    [ordered]@{ id = 6; sellerId = 6; sellerName = "Anonymous Senior"; title = "Organic Chemistry: Structure & Function (6th Ed)"; description = "Hardcover textbook in great condition with study guide summary."; price = 40.00; category = "TEXTBOOKS"; status = "AVAILABLE"; imageUrl = "https://images.unsplash.com/photo-1532012164546-f432f2e3777f?w=500"; sellerDepartment = $null; sellerYear = $null; sellerPhone = $null; sellerEmail = $null; sellerWhatsapp = $null; sellerAvatarUrl = $null }
 )
 
 $lostfoundState = [System.Collections.ArrayList]@(
@@ -196,13 +199,19 @@ while ($listener.IsListening) {
                     $newItem = [ordered]@{
                         id = $newId
                         sellerId = if ($body.sellerId) { [int]$body.sellerId } else { 2 }
-                        sellerName = "John Doe"
+                        sellerName = if ($body.sellerName) { [string]$body.sellerName } else { "John Doe" }
                         title = [string]$body.title
                         description = [string]$body.description
                         price = [double]$body.price
                         category = if ($body.category) { [string]$body.category } else { "GENERAL" }
                         status = "AVAILABLE"
                         imageUrl = if ($body.imageUrl) { [string]$body.imageUrl } else { "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400" }
+                        sellerDepartment = if ($body.sellerDepartment) { [string]$body.sellerDepartment } else { $null }
+                        sellerYear = if ($body.sellerYear) { [string]$body.sellerYear } else { $null }
+                        sellerPhone = if ($body.sellerPhone) { [string]$body.sellerPhone } else { $null }
+                        sellerEmail = if ($body.sellerEmail) { [string]$body.sellerEmail } else { $null }
+                        sellerWhatsapp = if ($body.sellerWhatsapp) { [string]$body.sellerWhatsapp } else { $null }
+                        sellerAvatarUrl = if ($body.sellerAvatarUrl) { [string]$body.sellerAvatarUrl } else { "https://api.dicebear.com/7.x/avataaars/svg?seed=User" }
                         createdAt = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ")
                     }
                     [void]$marketplaceState.Insert(0, $newItem)

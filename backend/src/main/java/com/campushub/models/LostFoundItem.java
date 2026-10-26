@@ -11,14 +11,21 @@ public class LostFoundItem {
     private String description;
     private String location;
     private String dateReported;
-    private String status; // 'OPEN' or 'CLAIMED'
+    private String status; // 'OPEN' or 'CLAIMED' or 'RESOLVED'
     private String imageUrl;
+    private String contactPhone;
+    private String contactEmail;
+    private String contactInstagram;
     private Timestamp createdAt;
 
     public LostFoundItem() {
     }
 
     public LostFoundItem(int id, int reporterId, String reporterName, String type, String title, String description, String location, String dateReported, String status, String imageUrl, Timestamp createdAt) {
+        this(id, reporterId, reporterName, type, title, description, location, dateReported, status, imageUrl, null, null, null, createdAt);
+    }
+
+    public LostFoundItem(int id, int reporterId, String reporterName, String type, String title, String description, String location, String dateReported, String status, String imageUrl, String contactPhone, String contactEmail, String contactInstagram, Timestamp createdAt) {
         this.id = id;
         this.reporterId = reporterId;
         this.reporterName = reporterName;
@@ -29,6 +36,9 @@ public class LostFoundItem {
         this.dateReported = dateReported;
         this.status = status;
         this.imageUrl = imageUrl;
+        this.contactPhone = contactPhone;
+        this.contactEmail = contactEmail;
+        this.contactInstagram = contactInstagram;
         this.createdAt = createdAt;
     }
 
@@ -110,6 +120,30 @@ public class LostFoundItem {
 
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+
+    public String getContactPhone() {
+        return contactPhone;
+    }
+
+    public void setContactPhone(String contactPhone) {
+        this.contactPhone = contactPhone;
+    }
+
+    public String getContactEmail() {
+        return contactEmail;
+    }
+
+    public void setContactEmail(String contactEmail) {
+        this.contactEmail = contactEmail;
+    }
+
+    public String getContactInstagram() {
+        return contactInstagram;
+    }
+
+    public void setContactInstagram(String contactInstagram) {
+        this.contactInstagram = contactInstagram;
     }
 
     public Timestamp getCreatedAt() {

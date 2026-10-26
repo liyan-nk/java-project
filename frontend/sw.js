@@ -7,8 +7,8 @@
  * - Write-through cache invalidation via postMessage
  */
 
-const STATIC_CACHE_NAME = 'campushub-static-v5';
-const API_CACHE_NAME = 'campushub-api-v5';
+const STATIC_CACHE_NAME = 'campushub-static-v13';
+const API_CACHE_NAME = 'campushub-api-v13';
 
 const STATIC_ASSETS = [
   '/',

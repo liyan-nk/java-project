@@ -5,6 +5,7 @@ import com.campushub.dao.MarketplaceDAO;
 import com.campushub.dao.PlannerDAO;
 import com.campushub.dao.UserDAO;
 import com.campushub.models.AttendanceRecord;
+import com.campushub.models.LostFoundItem;
 import com.campushub.models.MarketplaceItem;
 import com.campushub.models.TimetableEntry;
 import com.campushub.models.User;
@@ -96,7 +97,8 @@ public class WebServer {
     }
 
     private static String readRequestBody(HttpExchange exchange) throws IOException {
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8))) {
+        try (BufferedReader br = new BufferedReader(
+                new InputStreamReader(exchange.getRequestBody(), StandardCharsets.UTF_8))) {
             StringBuilder sb = new StringBuilder();
             String line;
             while ((line = br.readLine()) != null) {
@@ -110,7 +112,8 @@ public class WebServer {
     private class UserHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            if (handlePreflightOptions(exchange)) return;
+            if (handlePreflightOptions(exchange))
+                return;
             if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
                 sendJsonResponse(exchange, 450, Map.of("error", "Method not allowed"));
                 return;
@@ -124,7 +127,8 @@ public class WebServer {
     private class TimetableHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            if (handlePreflightOptions(exchange)) return;
+            if (handlePreflightOptions(exchange))
+                return;
             String method = exchange.getRequestMethod();
 
             if ("GET".equalsIgnoreCase(method)) {
@@ -133,7 +137,8 @@ public class WebServer {
             } else if ("POST".equalsIgnoreCase(method)) {
                 String body = readRequestBody(exchange);
                 TimetableEntry entry = gson.fromJson(body, TimetableEntry.class);
-                if (entry.getUserId() == 0) entry.setUserId(2);
+                if (entry.getUserId() == 0)
+                    entry.setUserId(2);
                 TimetableEntry created = plannerDAO.addTimetableEntry(entry);
                 sendJsonResponse(exchange, 201, created);
             } else {
@@ -146,7 +151,8 @@ public class WebServer {
     private class AttendanceHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            if (handlePreflightOptions(exchange)) return;
+            if (handlePreflightOptions(exchange))
+                return;
             if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
                 sendJsonResponse(exchange, 405, Map.of("error", "Method not allowed"));
                 return;
@@ -160,7 +166,8 @@ public class WebServer {
     private class AttendanceStepHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            if (handlePreflightOptions(exchange)) return;
+            if (handlePreflightOptions(exchange))
+                return;
             if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
                 sendJsonResponse(exchange, 405, Map.of("error", "Method not allowed"));
                 return;
@@ -179,16 +186,39 @@ public class WebServer {
     private class MarketplaceHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            if (handlePreflightOptions(exchange)) return;
+            if (handlePreflightOptions(exchange))
+                return;
             String method = exchange.getRequestMethod();
 
             if ("GET".equalsIgnoreCase(method)) {
+                String query = exchange.getRequestURI().getQuery();
                 List<MarketplaceItem> items = marketplaceDAO.getAllItems();
+                if (query != null && query.contains("category=")) {
+                    String categoryParam = "";
+                    for (String param : query.split("&")) {
+                        String[] pair = param.split("=");
+                        if (pair.length == 2 && pair[0].equalsIgnoreCase("category")) {
+                            categoryParam = pair[1].toUpperCase();
+                        }
+                    }
+                    if (!categoryParam.isEmpty() && !categoryParam.equals("ALL")) {
+                        final String cat = categoryParam;
+                        items = items.stream().filter(i -> {
+                            String ic = i.getCategory() != null ? i.getCategory().toUpperCase() : "";
+                            return ic.equals(cat) 
+                                || (cat.equals("TEXTBOOKS") && (ic.equals("BOOKS") || ic.equals("BOOK")))
+                                || (cat.equals("TECH") && (ic.equals("ELECTRONICS") || ic.equals("GADGETS")))
+                                || (cat.equals("DORM") && (ic.equals("FURNITURE")))
+                                || (cat.equals("GENERAL") && (ic.equals("OTHER")));
+                        }).toList();
+                    }
+                }
                 sendJsonResponse(exchange, 200, items);
             } else if ("POST".equalsIgnoreCase(method)) {
                 String body = readRequestBody(exchange);
                 MarketplaceItem item = gson.fromJson(body, MarketplaceItem.class);
-                if (item.getSellerId() == 0) item.setSellerId(2);
+                if (item.getSellerId() == 0)
+                    item.setSellerId(2);
                 MarketplaceItem created = marketplaceDAO.createItem(item);
                 sendJsonResponse(exchange, 201, created);
             } else {
@@ -197,16 +227,37 @@ public class WebServer {
         }
     }
 
-    // 6. GET /api/lostfound
+    // 6. GET & POST /api/lostfound
     private class LostFoundHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            if (handlePreflightOptions(exchange)) return;
-            if (!"GET".equalsIgnoreCase(exchange.getRequestMethod())) {
-                sendJsonResponse(exchange, 405, Map.of("error", "Method not allowed"));
+            if (handlePreflightOptions(exchange))
                 return;
+            String method = exchange.getRequestMethod();
+            if ("GET".equalsIgnoreCase(method)) {
+                String query = exchange.getRequestURI().getQuery();
+                List<LostFoundItem> items = lostFoundDAO.getAllItems();
+                if (query != null && query.contains("type=")) {
+                    String type = query.split("type=")[1].split("&")[0].toUpperCase();
+                    if (!type.equals("ALL")) {
+                        items = items.stream().filter(i -> i.getType() != null && i.getType().equalsIgnoreCase(type)).toList();
+                    }
+                }
+                sendJsonResponse(exchange, 200, items);
+            } else if ("POST".equalsIgnoreCase(method)) {
+                String body = readRequestBody(exchange);
+                LostFoundItem item = gson.fromJson(body, LostFoundItem.class);
+                if (item.getReporterId() == 0) {
+                    item.setReporterId(2);
+                }
+                if (item.getReporterName() == null || item.getReporterName().isBlank()) {
+                    item.setReporterName("Campus Student");
+                }
+                LostFoundItem created = lostFoundDAO.createItem(item);
+                sendJsonResponse(exchange, 201, created);
+            } else {
+                sendJsonResponse(exchange, 405, Map.of("error", "Method not allowed"));
             }
-            sendJsonResponse(exchange, 200, lostFoundDAO.getAllItems());
         }
     }
 
@@ -214,7 +265,8 @@ public class WebServer {
     private class LostFoundClaimHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
-            if (handlePreflightOptions(exchange)) return;
+            if (handlePreflightOptions(exchange))
+                return;
             if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
                 sendJsonResponse(exchange, 405, Map.of("error", "Method not allowed"));
                 return;
@@ -247,10 +299,17 @@ public class WebServer {
         public void handle(HttpExchange exchange) throws IOException {
             applyCorsAndHeaders(exchange);
             String pathStr = exchange.getRequestURI().getPath();
-            if (pathStr.equals("/")) pathStr = "/index.html";
+            if (pathStr.equals("/"))
+                pathStr = "/index.html";
 
             // Resolve frontend path
             Path basePath = Paths.get(System.getProperty("user.dir"), "frontend").normalize();
+            if (!Files.exists(basePath)) {
+                Path altPath = Paths.get(System.getProperty("user.dir"), "..", "frontend").normalize();
+                if (Files.exists(altPath)) {
+                    basePath = altPath;
+                }
+            }
             Path filePath = basePath.resolve(pathStr.substring(1)).normalize();
 
             if (!filePath.startsWith(basePath) || !Files.exists(filePath) || Files.isDirectory(filePath)) {

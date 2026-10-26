@@ -24,7 +24,8 @@ This document details all canonical `/api/` REST endpoints for CampusHub, specif
 | `POST` | `/api/attendance/step` | Update/Step attendance record | None | `{ "id": 1, "attended": true }` | `{ "id": 1, "totalClasses": 21, "attendedClasses": 18, "percentage": 85.7 }` | `200 OK`, `400 Bad Request`, `404 Not Found` |
 | `GET` | `/api/marketplace` | Fetch all marketplace listings | `category` (optional) | None | `[ { "id": 1, "sellerId": 2, "sellerName": "Jane Doe", "title": "Calculus Textbook", "description": "8th Edition, Like New", "price": 25.50, "category": "BOOKS", "status": "AVAILABLE", "imageUrl": "/storage/marketplace/book.jpg", "createdAt": "2026-09-02T10:00:00" } ]` | `200 OK` |
 | `POST` | `/api/marketplace` | Post a new marketplace item | None | `{ "sellerId": 1, "title": "Engineering Physics Notes", "description": "Handwritten semester notes", "price": 10.00, "category": "NOTES", "imageUrl": "/storage/marketplace/notes.jpg" }` | `{ "id": 3, "status": "created" }` | `201 Created`, `400 Bad Request` |
-| `GET` | `/api/lostfound` | Fetch lost & found reports | `type` (`LOST` \| `FOUND`) | None | `[ { "id": 1, "reporterId": 3, "reporterName": "John", "type": "LOST", "title": "Blue Water Bottle", "description": "Hydroflask with stickers", "location": "Library 2nd Floor", "dateReported": "2026-09-01", "status": "OPEN", "imageUrl": "/storage/lostfound/bottle.jpg" } ]` | `200 OK` |
+| `GET` | `/api/lostfound` | Fetch lost & found reports | `type` (`LOST` \| `FOUND`) | None | `[ { "id": 1, "reporterId": 3, "reporterName": "John", "type": "LOST", "title": "Blue Water Bottle", "description": "Hydroflask with stickers", "location": "Library 2nd Floor", "dateReported": "2026-09-01", "status": "OPEN", "imageUrl": "/storage/lostfound/bottle.jpg", "contactPhone": "...", "contactEmail": "...", "contactInstagram": "..." } ]` | `200 OK` |
+| `POST` | `/api/lostfound` | File a new lost or found report | None | `{ "reporterId": 2, "type": "LOST", "title": "Hydro Flask", "description": "Blue bottle", "location": "Cafeteria", "dateReported": "2026-10-26", "imageUrl": "...", "contactPhone": "...", "contactEmail": "...", "contactInstagram": "..." }` | `{ "id": 13, "status": "OPEN", ... }` | `201 Created`, `400 Bad Request` |
 | `POST` | `/api/lostfound/claim` | Claim or resolve lost/found item | None | `{ "id": 1, "status": "CLAIMED" }` | `{ "id": 1, "status": "CLAIMED", "updated": true }` | `200 OK`, `404 Not Found` |
 
 ---
@@ -79,11 +80,18 @@ This document details all canonical `/api/` REST endpoints for CampusHub, specif
 ```json
 {
   "sellerId": 1,
+  "sellerName": "Jane Smith",
   "title": "Scientific Calculator FX-991EX",
   "description": "Perfect condition, solar powered",
   "price": 18.50,
   "category": "ELECTRONICS",
-  "imageUrl": "/storage/marketplace/calc.jpg"
+  "imageUrl": "/storage/marketplace/calc.jpg",
+  "sellerDepartment": "Computer Science & Engineering",
+  "sellerYear": "Senior (Year 4 / Sem 8)",
+  "sellerPhone": "+1 (555) 987-6543",
+  "sellerEmail": "jane.smith@campus.edu",
+  "sellerWhatsapp": "+15559876543",
+  "sellerAvatarUrl": "https://api.dicebear.com/7.x/avataaars/svg?seed=Jane"
 }
 ```
 

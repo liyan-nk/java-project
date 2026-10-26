@@ -1,7 +1,8 @@
 /**
  * Lost & Found View Module
  * Mobile-first report feed with segmented filter pills, status badges,
- * role-aware action buttons (Student vs Admin), and image upload preview.
+ * role-aware action buttons (Student vs Admin), interactive card click popup,
+ * rich contact information linking (phone, email, Instagram), and backend report creation.
  */
 import { escapeHtml, showToast } from '../utils.js';
 import { store } from '../state.js';
@@ -10,9 +11,13 @@ import * as api from '../api.js';
 let viewContainer = null;
 let activeTypeFilter = 'ALL';
 let uploadedBase64Image = '';
+let lastFocusedTrigger = null;
+let escapeKeyHandler = null;
 
 export function init(container) {
   viewContainer = container;
+
+  const todayStr = new Date().toISOString().split('T')[0];
 
   viewContainer.innerHTML = `
     <!-- Section Header -->
@@ -24,11 +29,11 @@ export function init(container) {
       <button type="button" id="open-lost-modal-btn" class="btn btn-sm">+ Report Item</button>
     </div>
 
-    <!-- Type Filter Bar -->
+    <!-- Type Filter Bar with Dynamic Count Badges -->
     <div class="filter-bar" id="lost-filter-bar" role="tablist" aria-label="Filter reports by type">
-      <button type="button" class="filter-pill active" data-type="ALL" role="tab" aria-selected="true">All Reports</button>
-      <button type="button" class="filter-pill" data-type="LOST" role="tab" aria-selected="false">🔴 Lost Items</button>
-      <button type="button" class="filter-pill" data-type="FOUND" role="tab" aria-selected="false">🟢 Found Items</button>
+      <button type="button" class="filter-pill active" data-type="ALL" role="tab" aria-selected="true">All Reports (0)</button>
+      <button type="button" class="filter-pill" data-type="LOST" role="tab" aria-selected="false">🔴 Lost Items (0)</button>
+      <button type="button" class="filter-pill" data-type="FOUND" role="tab" aria-selected="false">🟢 Found Items (0)</button>
     </div>
 
     <!-- Lost & Found Cards Grid -->
@@ -43,41 +48,68 @@ export function init(container) {
           <h3 class="modal-title" id="lost-modal-title">Report Lost or Found Item</h3>
           <button type="button" class="modal-close-btn" id="close-lost-modal-btn" aria-label="Close modal">✕</button>
         </div>
-        <form id="report-item-form">
-          <!-- Image Dropzone with Preview -->
-          <div class="form-group">
-            <label class="form-label" for="lost-image-file">Item Photo (Optional)</label>
-            <div class="image-upload-preview" id="lost-image-dropzone">
-              <span id="lost-upload-placeholder">📸 Tap to attach photo</span>
-              <img id="lost-image-preview" src="" alt="Item Preview" style="display: none;">
+        <form id="report-item-form" class="modal-form-compact">
+          <div class="modal-grid-2col">
+            <!-- Left Column: Image Upload & Description -->
+            <div class="modal-col">
+              <div class="form-group">
+                <label class="form-label" for="lost-image-file">Item Photo (Optional)</label>
+                <div class="image-upload-preview compact-dropzone" id="lost-image-dropzone">
+                  <span id="lost-upload-placeholder">📸 Tap to attach photo</span>
+                  <img id="lost-image-preview" src="" alt="Item Preview" style="display: none;">
+                </div>
+                <input type="file" id="lost-image-file" accept="image/*" style="display: none;">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="report-description">Description & Identifiers</label>
+                <textarea id="report-description" class="form-textarea compact-textarea" placeholder="Stickers, marks, contents..." required maxlength="250"></textarea>
+              </div>
             </div>
-            <input type="file" id="lost-image-file" accept="image/*" style="display: none;">
+
+            <!-- Right Column: Details & Contact Info -->
+            <div class="modal-col">
+              <div class="form-row-2col">
+                <div class="form-group">
+                  <label class="form-label" for="report-type">Report Category</label>
+                  <select id="report-type" class="form-select" required>
+                    <option value="LOST">🔴 Lost Item</option>
+                    <option value="FOUND">🟢 Found Item</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="report-date">Date Reported</label>
+                  <input type="date" id="report-date" class="form-input" value="${todayStr}">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="report-title">Item Name</label>
+                <input type="text" id="report-title" class="form-input" placeholder="e.g. Navy Blue Hydroflask Water Bottle" required maxlength="80">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="report-location">Location Last Seen / Found</label>
+                <input type="text" id="report-location" class="form-input" placeholder="e.g. Campus Library 2nd Floor Study Desk" required maxlength="60">
+              </div>
+
+              <div class="form-row-3col">
+                <div class="form-group">
+                  <label class="form-label" for="report-phone">Phone</label>
+                  <input type="tel" id="report-phone" class="form-input" placeholder="(555) 234-5678" maxlength="25">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="report-email">Email</label>
+                  <input type="email" id="report-email" class="form-input" placeholder="student@campus.edu" maxlength="60">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="report-instagram">Instagram</label>
+                  <input type="text" id="report-instagram" class="form-input" placeholder="@handle" maxlength="40">
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label" for="report-type">Report Category</label>
-            <select id="report-type" class="form-select" required>
-              <option value="LOST">I Lost Something (Missing Item)</option>
-              <option value="FOUND">I Found Something (Recovered Item)</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="report-title">Item Name</label>
-            <input type="text" id="report-title" class="form-input" placeholder="e.g. Navy Blue Hydroflask Water Bottle" required maxlength="80">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="report-location">Location Last Seen / Found</label>
-            <input type="text" id="report-location" class="form-input" placeholder="e.g. Campus Library 2nd Floor Study Desk" required maxlength="60">
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="report-description">Description & Identifiers</label>
-            <textarea id="report-description" class="form-textarea" placeholder="Stickers, scratches, brand marks, or contents..." required maxlength="250"></textarea>
-          </div>
-
-          <div class="form-actions">
+          <div class="form-actions compact-actions">
             <button type="button" class="btn btn-secondary" id="cancel-lost-modal-btn">Cancel</button>
             <button type="submit" class="btn" id="submit-lost-btn">Submit Report</button>
           </div>
@@ -87,6 +119,13 @@ export function init(container) {
   `;
 
   bindEvents();
+  initDetailModalListeners();
+
+  // Ensure modal dialog is attached directly to document.body (outside transformed container)
+  const reportModalEl = document.getElementById('report-item-modal');
+  if (reportModalEl && reportModalEl.parentElement !== document.body) {
+    document.body.appendChild(reportModalEl);
+  }
 }
 
 export function render(state) {
@@ -99,6 +138,23 @@ export function render(state) {
   const currentUser = state.currentUser || {};
   const isAdmin = (currentUser.role || '').toUpperCase() === 'ADMIN';
   const pendingIds = state.pendingClaimIds || new Set();
+
+  // Compute dynamic badge counts
+  const counts = {
+    ALL: lostfound.length,
+    LOST: lostfound.filter((item) => (item.type || '').toUpperCase() === 'LOST').length,
+    FOUND: lostfound.filter((item) => (item.type || '').toUpperCase() === 'FOUND').length
+  };
+
+  const filterBar = viewContainer.querySelector('#lost-filter-bar');
+  if (filterBar) {
+    const allBtn = filterBar.querySelector('[data-type="ALL"]');
+    const lostBtn = filterBar.querySelector('[data-type="LOST"]');
+    const foundBtn = filterBar.querySelector('[data-type="FOUND"]');
+    if (allBtn) allBtn.textContent = `All Reports (${counts.ALL})`;
+    if (lostBtn) lostBtn.textContent = `🔴 Lost Items (${counts.LOST})`;
+    if (foundBtn) foundBtn.textContent = `🟢 Found Items (${counts.FOUND})`;
+  }
 
   const filtered = activeTypeFilter === 'ALL'
     ? lostfound
@@ -124,7 +180,7 @@ export function render(state) {
       : 'https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=500');
 
     return `
-      <article class="lost-card" data-id="${item.id}" tabindex="0">
+      <article class="lost-card" data-id="${item.id}" tabindex="0" role="button" aria-haspopup="dialog" aria-label="View report details for ${escapeHtml(item.title)}">
         <div class="lost-card-header">
           <div class="lost-badge-group">
             <span class="type-pill ${item.type === 'LOST' ? 'lost' : 'found'}">${escapeHtml(item.type)}</span>
@@ -154,7 +210,7 @@ export function render(state) {
           <img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(item.title)}" class="lost-img-thumb" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500'">
         ` : ''}
 
-        <!-- Role-Aware Button Actions -->
+        <!-- Role-Aware Button Actions (Clicking button does not open card details) -->
         <div class="lost-card-actions">
           ${isAdmin ? `
             <!-- Admin Controls -->
@@ -177,6 +233,311 @@ export function render(state) {
     `;
   }).join('');
 }
+
+// ----------------------------------------------------
+// Details Modal Implementation (Centered Viewport Popup)
+// ----------------------------------------------------
+
+export function openLostDetailModal(item, triggerEl = null) {
+  const modal = document.getElementById('lost-detail-modal');
+  if (!modal || !item) return;
+
+  lastFocusedTrigger = triggerEl || document.activeElement;
+
+  // 1. Populate Image
+  const imgEl = modal.querySelector('#lost-detail-image');
+  const placeholderEl = modal.querySelector('#lost-detail-placeholder');
+  const fallbackImg = item.type === 'LOST'
+    ? 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=500'
+    : 'https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=500';
+  const imgUrl = item.imageUrl || fallbackImg;
+
+  if (imgUrl) {
+    imgEl.src = imgUrl;
+    imgEl.alt = item.title || 'Item photo';
+    imgEl.style.display = 'block';
+    if (placeholderEl) placeholderEl.style.display = 'none';
+    imgEl.onerror = () => {
+      imgEl.style.display = 'none';
+      if (placeholderEl) placeholderEl.style.display = 'flex';
+    };
+  } else {
+    imgEl.style.display = 'none';
+    if (placeholderEl) placeholderEl.style.display = 'flex';
+  }
+
+  // 2. Type & Status Badges
+  const typeBadge = modal.querySelector('#lost-detail-type-badge');
+  if (typeBadge) {
+    typeBadge.className = 'type-pill ' + ((item.type || '').toUpperCase() === 'LOST' ? 'lost' : 'found');
+    typeBadge.textContent = (item.type || '').toUpperCase() === 'LOST' ? 'Lost Item' : 'Found Item';
+  }
+
+  const isClaimed = item.status === 'CLAIMED' || item.status === 'RESOLVED';
+  const isPendingVerification = item.status === 'PENDING_VERIFICATION';
+  const statusBadge = modal.querySelector('#lost-detail-status-badge');
+  if (statusBadge) {
+    statusBadge.className = 'status-pill ' + (isClaimed ? 'claimed' : (isPendingVerification ? 'pending' : ''));
+    statusBadge.textContent = item.status || 'OPEN';
+  }
+
+  // 3. Title, Location, Description
+  const titleEl = modal.querySelector('#lost-detail-title');
+  if (titleEl) titleEl.textContent = item.title || 'Report Details';
+
+  const locEl = modal.querySelector('#lost-detail-location');
+  if (locEl) locEl.textContent = item.location || 'Campus';
+
+  const descEl = modal.querySelector('#lost-detail-desc');
+  if (descEl) descEl.textContent = item.description || 'No additional details provided.';
+
+  // 4. Metadata Grid
+  const metaContainer = modal.querySelector('#lost-detail-meta-container');
+  if (metaContainer) {
+    metaContainer.innerHTML = `
+      <div class="item-details-meta-item">
+        <span class="item-details-meta-label">Date Reported</span>
+        <span class="item-details-meta-value">${escapeHtml(item.dateReported || 'Recent')}</span>
+      </div>
+      <div class="item-details-meta-item">
+        <span class="item-details-meta-label">Reported By</span>
+        <span class="item-details-meta-value">${escapeHtml(item.reporterName || 'Campus Community')}</span>
+      </div>
+      <div class="item-details-meta-item">
+        <span class="item-details-meta-label">Report ID</span>
+        <span class="item-details-meta-value">#${item.id}</span>
+      </div>
+    `;
+  }
+
+  // 5. Contact Information Links
+  const contactContainer = modal.querySelector('#lost-contact-container');
+  if (contactContainer) {
+    const contactLinks = [];
+
+    if (item.contactPhone && item.contactPhone.trim()) {
+      const rawPhone = item.contactPhone.trim();
+      const telDigits = rawPhone.replace(/[^\d+]/g, '');
+      contactLinks.push(`
+        <div class="lost-contact-item">
+          <a href="tel:${escapeHtml(telDigits)}" class="lost-contact-link">
+            <span>📞 Call:</span>
+            <strong>${escapeHtml(rawPhone)}</strong>
+          </a>
+        </div>
+      `);
+    }
+
+    if (item.contactEmail && item.contactEmail.trim()) {
+      const email = item.contactEmail.trim();
+      contactLinks.push(`
+        <div class="lost-contact-item">
+          <a href="mailto:${escapeHtml(email)}" class="lost-contact-link">
+            <span>✉️ Email:</span>
+            <strong>${escapeHtml(email)}</strong>
+          </a>
+        </div>
+      `);
+    }
+
+    if (item.contactInstagram && item.contactInstagram.trim()) {
+      const ig = item.contactInstagram.trim();
+      const cleanIg = ig.replace(/^@+/, '');
+      contactLinks.push(`
+        <div class="lost-contact-item">
+          <a href="https://instagram.com/${encodeURIComponent(cleanIg)}" target="_blank" rel="noopener noreferrer" class="lost-contact-link">
+            <span>📸 Instagram:</span>
+            <strong>@${escapeHtml(cleanIg)}</strong>
+          </a>
+        </div>
+      `);
+    }
+
+    if (contactLinks.length > 0) {
+      contactContainer.innerHTML = contactLinks.join('');
+    } else {
+      contactContainer.innerHTML = `<div class="lost-contact-empty">Contact information has not been provided for this report.</div>`;
+    }
+  }
+
+  // 6. Role-Aware Actions inside Modal
+  renderModalActions(item);
+
+  // 7. Open & Scroll Lock
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  // 8. Focus Management
+  const closeBtn = modal.querySelector('#close-lost-detail-btn');
+  closeBtn?.focus();
+
+  // 9. Keyboard Escape Listener
+  if (escapeKeyHandler) {
+    window.removeEventListener('keydown', escapeKeyHandler);
+  }
+  escapeKeyHandler = (e) => {
+    if (e.key === 'Escape') {
+      closeLostDetailModal();
+    }
+  };
+  window.addEventListener('keydown', escapeKeyHandler);
+}
+
+function renderModalActions(item) {
+  const modal = document.getElementById('lost-detail-modal');
+  if (!modal) return;
+  const actionsContainer = modal.querySelector('#lost-detail-actions-container');
+  if (!actionsContainer) return;
+
+  const currentUser = store.getState().currentUser || {};
+  const isAdmin = (currentUser.role || '').toUpperCase() === 'ADMIN';
+  const pendingIds = store.getState().pendingClaimIds || new Set();
+  const isClaimed = item.status === 'CLAIMED' || item.status === 'RESOLVED';
+  const isPending = pendingIds.has(item.id);
+
+  if (isAdmin) {
+    actionsContainer.innerHTML = `
+      <button type="button" class="btn btn-secondary modal-reset-btn" data-id="${item.id}">↺ Reset</button>
+      <button type="button" class="btn btn-success modal-verify-btn" data-id="${item.id}" ${isClaimed ? 'disabled' : ''}>✓ Verify Claim</button>
+    `;
+  } else {
+    actionsContainer.innerHTML = `
+      <button type="button" class="btn modal-claim-btn" data-id="${item.id}" ${isClaimed || isPending ? 'disabled' : ''}>
+        ${isClaimed ? '✓ Claimed / Resolved' : (isPending ? 'Submitting...' : 'Claim This Item')}
+      </button>
+    `;
+  }
+}
+
+export function closeLostDetailModal() {
+  const modal = document.getElementById('lost-detail-modal');
+  if (!modal) return;
+
+  modal.classList.remove('open');
+  document.body.style.overflow = '';
+
+  if (escapeKeyHandler) {
+    window.removeEventListener('keydown', escapeKeyHandler);
+    escapeKeyHandler = null;
+  }
+
+  if (lastFocusedTrigger && typeof lastFocusedTrigger.focus === 'function') {
+    lastFocusedTrigger.focus();
+    lastFocusedTrigger = null;
+  }
+}
+
+let detailListenersInitialized = false;
+
+function initDetailModalListeners() {
+  if (detailListenersInitialized) return;
+  detailListenersInitialized = true;
+
+  const modal = document.getElementById('lost-detail-modal');
+  if (!modal) return;
+
+  // Backdrop click closes modal
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      closeLostDetailModal();
+    }
+  });
+
+  // Top-right close button & bottom dismiss button
+  const closeBtn = modal.querySelector('#close-lost-detail-btn');
+  const dismissBtn = modal.querySelector('#dismiss-lost-detail-btn');
+  closeBtn?.addEventListener('click', closeLostDetailModal);
+  dismissBtn?.addEventListener('click', closeLostDetailModal);
+
+  // Modal actions container delegation
+  const actionsContainer = modal.querySelector('#lost-detail-actions-container');
+  if (actionsContainer) {
+    actionsContainer.addEventListener('click', async (e) => {
+      // Student Claim in Modal
+      const claimBtn = e.target.closest('.modal-claim-btn');
+      if (claimBtn && !claimBtn.hasAttribute('disabled')) {
+        const itemId = parseInt(claimBtn.getAttribute('data-id'), 10);
+        if (!itemId) return;
+
+        const rollback = store.optimisticClaimItem(itemId);
+        try {
+          const serverItem = await api.claimLostFoundItem(itemId, 'CLAIMED');
+          store.reconcileClaimItem(itemId, serverItem);
+          showToast('Claim submitted for administrator verification!', 'success');
+          // Update status inside open modal
+          const currentItem = store.getState().lostfound.find((i) => i.id === itemId);
+          if (currentItem) {
+            const statusBadge = modal.querySelector('#lost-detail-status-badge');
+            if (statusBadge) {
+              statusBadge.className = 'status-pill claimed';
+              statusBadge.textContent = 'CLAIMED';
+            }
+            renderModalActions(currentItem);
+          }
+        } catch (err) {
+          rollback();
+          showToast('Failed to claim item. Please try again.', 'error');
+        }
+        return;
+      }
+
+      // Admin Verify in Modal
+      const verifyBtn = e.target.closest('.modal-verify-btn');
+      if (verifyBtn && !verifyBtn.hasAttribute('disabled')) {
+        const itemId = parseInt(verifyBtn.getAttribute('data-id'), 10);
+        if (!itemId) return;
+
+        try {
+          await api.claimLostFoundItem(itemId, 'CLAIMED');
+          store.updateClaimStatus(itemId, 'CLAIMED');
+          showToast(`Item #${itemId} verified and resolved!`, 'success');
+          const currentItem = store.getState().lostfound.find((i) => i.id === itemId);
+          if (currentItem) {
+            const statusBadge = modal.querySelector('#lost-detail-status-badge');
+            if (statusBadge) {
+              statusBadge.className = 'status-pill claimed';
+              statusBadge.textContent = 'CLAIMED';
+            }
+            renderModalActions(currentItem);
+          }
+        } catch (err) {
+          store.updateClaimStatus(itemId, 'CLAIMED');
+          showToast(`Item #${itemId} verified`, 'success');
+        }
+        return;
+      }
+
+      // Admin Reset in Modal
+      const resetBtn = e.target.closest('.modal-reset-btn');
+      if (resetBtn) {
+        const itemId = parseInt(resetBtn.getAttribute('data-id'), 10);
+        if (!itemId) return;
+
+        try {
+          await api.claimLostFoundItem(itemId, 'OPEN');
+          store.updateClaimStatus(itemId, 'OPEN');
+          showToast(`Item #${itemId} reset to Open status`, 'info');
+          const currentItem = store.getState().lostfound.find((i) => i.id === itemId);
+          if (currentItem) {
+            const statusBadge = modal.querySelector('#lost-detail-status-badge');
+            if (statusBadge) {
+              statusBadge.className = 'status-pill';
+              statusBadge.textContent = 'OPEN';
+            }
+            renderModalActions(currentItem);
+          }
+        } catch (err) {
+          store.updateClaimStatus(itemId, 'OPEN');
+          showToast(`Item #${itemId} reset to Open`, 'info');
+        }
+      }
+    });
+  }
+}
+
+// ----------------------------------------------------
+// Event Binding for View Components
+// ----------------------------------------------------
 
 let eventsBound = false;
 
@@ -202,13 +563,15 @@ function bindEvents() {
     });
   }
 
-  // 2. Action Buttons (Student Claim vs Admin Verify)
+  // 2. Action Buttons & Card Click for Detail Modal
   const container = viewContainer.querySelector('#lostfound-list-container');
   if (container) {
+    // Click delegation
     container.addEventListener('click', async (e) => {
-      // Student Claim
+      // Student Claim Button
       const claimBtn = e.target.closest('.claim-action-btn');
       if (claimBtn && !claimBtn.hasAttribute('disabled')) {
+        e.stopPropagation();
         const itemId = parseInt(claimBtn.getAttribute('data-id'), 10);
         if (!itemId) return;
 
@@ -224,9 +587,10 @@ function bindEvents() {
         return;
       }
 
-      // Admin Verify
+      // Admin Verify Button
       const verifyBtn = e.target.closest('.admin-verify-btn');
       if (verifyBtn && !verifyBtn.hasAttribute('disabled')) {
+        e.stopPropagation();
         const itemId = parseInt(verifyBtn.getAttribute('data-id'), 10);
         if (!itemId) return;
 
@@ -241,9 +605,10 @@ function bindEvents() {
         return;
       }
 
-      // Admin Reset
+      // Admin Reset Button
       const resetBtn = e.target.closest('.reset-status-btn');
       if (resetBtn) {
+        e.stopPropagation();
         const itemId = parseInt(resetBtn.getAttribute('data-id'), 10);
         if (!itemId) return;
 
@@ -255,24 +620,59 @@ function bindEvents() {
           store.updateClaimStatus(itemId, 'OPEN');
           showToast(`Item #${itemId} reset to Open`, 'info');
         }
+        return;
+      }
+
+      // Otherwise: Card Click opens Detail Modal
+      const card = e.target.closest('.lost-card');
+      if (card) {
+        const itemId = parseInt(card.getAttribute('data-id'), 10);
+        const item = store.getState().lostfound.find((i) => i.id === itemId);
+        if (item) {
+          openLostDetailModal(item, card);
+        }
+      }
+    });
+
+    // Keyboard support: Enter / Space on card opens detail modal
+    container.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        const card = e.target.closest('.lost-card');
+        if (card && e.target === card) {
+          e.preventDefault();
+          const itemId = parseInt(card.getAttribute('data-id'), 10);
+          const item = store.getState().lostfound.find((i) => i.id === itemId);
+          if (item) {
+            openLostDetailModal(item, card);
+          }
+        }
       }
     });
   }
 
-  // 3. Modal Controls & Image Upload Preview
-  const modal = viewContainer.querySelector('#report-item-modal');
+  // 3. Modal Controls & Image Upload Preview for Report Form
   const openBtn = viewContainer.querySelector('#open-lost-modal-btn');
-  const closeBtn = viewContainer.querySelector('#close-lost-modal-btn');
-  const cancelBtn = viewContainer.querySelector('#cancel-lost-modal-btn');
-  const form = viewContainer.querySelector('#report-item-form');
-  const dropzone = viewContainer.querySelector('#lost-image-dropzone');
-  const fileInput = viewContainer.querySelector('#lost-image-file');
-  const previewImg = viewContainer.querySelector('#lost-image-preview');
-  const placeholderText = viewContainer.querySelector('#lost-upload-placeholder');
+  const closeBtn = document.getElementById('close-lost-modal-btn') || viewContainer.querySelector('#close-lost-modal-btn');
+  const cancelBtn = document.getElementById('cancel-lost-modal-btn') || viewContainer.querySelector('#cancel-lost-modal-btn');
+  const form = document.getElementById('report-item-form') || viewContainer.querySelector('#report-item-form');
+  const dropzone = document.getElementById('lost-image-dropzone') || viewContainer.querySelector('#lost-image-dropzone');
+  const fileInput = document.getElementById('lost-image-file') || viewContainer.querySelector('#lost-image-file');
+  const previewImg = document.getElementById('lost-image-preview') || viewContainer.querySelector('#lost-image-preview');
+  const placeholderText = document.getElementById('lost-upload-placeholder') || viewContainer.querySelector('#lost-upload-placeholder');
 
-  const openModal = () => modal?.classList.add('open');
+  const openModal = () => {
+    const reportModal = document.getElementById('report-item-modal');
+    if (reportModal && reportModal.parentElement !== document.body) {
+      document.body.appendChild(reportModal);
+    }
+    reportModal?.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  };
+
   const closeModal = () => {
-    modal?.classList.remove('open');
+    const reportModal = document.getElementById('report-item-modal');
+    reportModal?.classList.remove('open');
+    document.body.style.overflow = '';
     form?.reset();
     uploadedBase64Image = '';
     if (previewImg) previewImg.style.display = 'none';
@@ -283,8 +683,9 @@ function bindEvents() {
   closeBtn?.addEventListener('click', closeModal);
   cancelBtn?.addEventListener('click', closeModal);
 
-  modal?.addEventListener('click', (e) => {
-    if (e.target === modal) closeModal();
+  const reportModalBackdrop = document.getElementById('report-item-modal');
+  reportModalBackdrop?.addEventListener('click', (e) => {
+    if (e.target === reportModalBackdrop) closeModal();
   });
 
   dropzone?.addEventListener('click', () => fileInput?.click());
@@ -309,25 +710,37 @@ function bindEvents() {
     e.preventDefault();
     const currentUser = store.getState().currentUser;
 
-    const fallbackImg = viewContainer.querySelector('#report-type').value === 'LOST'
+    const typeVal = (form?.querySelector('#report-type') || document.getElementById('report-type'))?.value || 'LOST';
+    const fallbackImg = typeVal === 'LOST'
       ? 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=500'
       : 'https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=500';
 
-    const newItem = {
-      id: Date.now(),
+    const newItemPayload = {
       reporterId: currentUser?.id || 2,
       reporterName: currentUser?.name || 'John Doe',
-      type: viewContainer.querySelector('#report-type').value,
-      title: viewContainer.querySelector('#report-title').value.trim(),
-      location: viewContainer.querySelector('#report-location').value.trim(),
-      description: viewContainer.querySelector('#report-description').value.trim(),
+      type: typeVal,
+      title: (form?.querySelector('#report-title') || document.getElementById('report-title'))?.value?.trim() || '',
+      location: (form?.querySelector('#report-location') || document.getElementById('report-location'))?.value?.trim() || '',
+      description: (form?.querySelector('#report-description') || document.getElementById('report-description'))?.value?.trim() || '',
       imageUrl: uploadedBase64Image || fallbackImg,
       status: 'OPEN',
-      dateReported: new Date().toISOString().split('T')[0]
+      dateReported: (form?.querySelector('#report-date') || document.getElementById('report-date'))?.value || new Date().toISOString().split('T')[0],
+      contactPhone: (form?.querySelector('#report-phone') || document.getElementById('report-phone'))?.value?.trim() || null,
+      contactEmail: (form?.querySelector('#report-email') || document.getElementById('report-email'))?.value?.trim() || null,
+      contactInstagram: (form?.querySelector('#report-instagram') || document.getElementById('report-instagram'))?.value?.trim() || null
     };
 
-    store.addLostFoundItem(newItem);
-    showToast('Item report filed successfully!', 'success');
-    closeModal();
+    try {
+      const createdItem = await api.createLostFoundItem(newItemPayload);
+      store.addLostFoundItem(createdItem || { ...newItemPayload, id: Date.now() });
+      showToast('Item report filed successfully!', 'success');
+      closeModal();
+    } catch (err) {
+      console.error('Failed to create report on server:', err);
+      // Fallback local store addition
+      store.addLostFoundItem({ ...newItemPayload, id: Date.now() });
+      showToast('Report filed (saved locally)!', 'success');
+      closeModal();
+    }
   });
 }

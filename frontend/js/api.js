@@ -181,7 +181,20 @@ export async function getLostFound(type = null) {
 }
 
 /**
- * 9. POST /api/lostfound/claim
+ * 9. POST /api/lostfound
+ * @param {Object} item
+ */
+export async function createLostFoundItem(item) {
+  const result = await request('/api/lostfound', {
+    method: 'POST',
+    body: item
+  });
+  notifyCacheInvalidation('/api/lostfound');
+  return result;
+}
+
+/**
+ * 10. POST /api/lostfound/claim
  * @param {number} id
  * @param {string} [status='CLAIMED']
  */
@@ -193,3 +206,4 @@ export async function claimLostFoundItem(id, status = 'CLAIMED') {
   notifyCacheInvalidation('/api/lostfound');
   return result;
 }
+
