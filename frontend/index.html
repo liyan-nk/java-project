@@ -141,5 +141,108 @@
     </button>
   </nav>
 
+  <!-- Marketplace Item Details Popup (Center-Aligned Viewport Modal) -->
+  <div id="market-detail-modal" class="item-details-backdrop" role="dialog" aria-modal="true" aria-labelledby="detail-modal-title" aria-describedby="detail-modal-desc">
+    <div class="item-details-modal">
+      <!-- Visible Top-Right Close Button -->
+      <button type="button" class="item-details-close" id="close-detail-modal-btn" aria-label="Close item details">✕</button>
+
+      <!-- Left Column: Large Product Image with Aspect-Ratio & Neutral Background -->
+      <div class="item-details-media" id="detail-media-container">
+        <img id="detail-image" class="item-details-image" src="" alt="Product image" loading="eager">
+        <div id="detail-placeholder" class="item-details-placeholder" style="display: none;">
+          <span class="item-details-placeholder-icon" aria-hidden="true">🛍️</span>
+          <span>No image available</span>
+        </div>
+      </div>
+
+      <!-- Right Column: Item Information -->
+      <div class="item-details-content">
+        <div class="item-details-header">
+          <div class="item-details-badges">
+            <span class="role-pill" id="detail-category-badge">Category</span>
+            <span class="status-pill safe" id="detail-status-badge">AVAILABLE</span>
+          </div>
+          <h3 id="detail-modal-title" class="item-details-title"></h3>
+          <div id="detail-price" class="item-details-price">$0.00</div>
+        </div>
+
+        <div class="item-details-desc-box">
+          <span class="item-details-desc-label">Item Description</span>
+          <p id="detail-modal-desc" class="item-details-desc"></p>
+        </div>
+
+        <!-- Dynamic Metadata Grid -->
+        <div class="item-details-meta" id="detail-meta-container"></div>
+
+        <!-- Senior Student Seller Contact Information Section -->
+        <section class="seller-contact-section" id="seller-contact-section" aria-label="Seller Contact Information">
+          <div class="seller-contact-header">
+            <span class="item-details-desc-label">Seller Contact Information</span>
+            <span class="seller-badge" id="seller-status-badge">🎓 Senior Student</span>
+          </div>
+          <div id="seller-contact-card" class="seller-contact-card"></div>
+          <div id="seller-contact-actions" class="seller-contact-actions"></div>
+        </section>
+
+        <div class="item-details-footer">
+          <button type="button" class="btn btn-secondary" id="dismiss-detail-btn">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lost & Found Item Details Popup (Center-Aligned Viewport Modal) -->
+  <div id="lost-detail-modal" class="item-details-backdrop" role="dialog" aria-modal="true" aria-labelledby="lost-detail-title" aria-describedby="lost-detail-desc">
+    <div class="item-details-modal">
+      <!-- Visible Top-Right Close Button -->
+      <button type="button" class="item-details-close" id="close-lost-detail-btn" aria-label="Close report details">✕</button>
+
+      <!-- Left Column: Large Product Image with Aspect-Ratio & Neutral Background -->
+      <div class="item-details-media" id="lost-detail-media-container">
+        <img id="lost-detail-image" class="item-details-image" src="" alt="Report photo" loading="eager">
+        <div id="lost-detail-placeholder" class="item-details-placeholder" style="display: none;">
+          <span class="item-details-placeholder-icon" aria-hidden="true">🔍</span>
+          <span>No photograph attached</span>
+        </div>
+      </div>
+
+      <!-- Right Column: Item Information -->
+      <div class="item-details-content">
+        <div class="item-details-header">
+          <div class="item-details-badges">
+            <span id="lost-detail-type-badge" class="type-pill"></span>
+            <span id="lost-detail-status-badge" class="status-pill"></span>
+          </div>
+          <h3 id="lost-detail-title" class="item-details-title"></h3>
+          <div class="lost-detail-row" style="margin-top: 4px; font-size: 0.95rem;">
+            <span>📍</span>
+            <strong id="lost-detail-location" style="color: var(--text-primary);"></strong>
+          </div>
+        </div>
+
+        <div class="item-details-desc-box">
+          <span class="item-details-desc-label">Description & Identifiers</span>
+          <p id="lost-detail-desc" class="item-details-desc"></p>
+        </div>
+
+        <!-- Dynamic Metadata Grid (Report Date, Reporter Name, Report ID) -->
+        <div class="item-details-meta" id="lost-detail-meta-container"></div>
+
+        <!-- Contact Information Section -->
+        <div class="lost-contact-section" id="lost-contact-section">
+          <span class="item-details-desc-label">Contact Information</span>
+          <div id="lost-contact-container" class="lost-contact-list"></div>
+        </div>
+
+        <!-- Footer Actions with Claim / Resolve Button & Close -->
+        <div class="item-details-footer">
+          <div id="lost-detail-actions-container" style="display: flex; gap: 8px;"></div>
+          <button type="button" class="btn btn-secondary" id="dismiss-lost-detail-btn">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

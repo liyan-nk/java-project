@@ -14,6 +14,28 @@ public class PlannerDAO {
 
     private static final Logger LOGGER = Logger.getLogger(PlannerDAO.class.getName());
 
+    // In-memory thread-safe storage for fallback / demonstration mode
+    private static final List<TimetableEntry> FALLBACK_TIMETABLE = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private static final List<AttendanceRecord> FALLBACK_ATTENDANCE = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private static final java.util.concurrent.atomic.AtomicInteger TT_ID_GEN = new java.util.concurrent.atomic.AtomicInteger(10);
+
+    static {
+        initFallbackData();
+    }
+
+    private static void initFallbackData() {
+        FALLBACK_TIMETABLE.add(new TimetableEntry(1, 2, "MONDAY", "Data Structures & Algorithms", "Room 301", "09:00", "10:30", "Dr. Alan Turing"));
+        FALLBACK_TIMETABLE.add(new TimetableEntry(2, 2, "MONDAY", "Database Systems", "Lab 2", "11:00", "12:30", "Prof. Edgar Codd"));
+        FALLBACK_TIMETABLE.add(new TimetableEntry(3, 2, "TUESDAY", "Computer Networks", "Room 204", "14:00", "15:30", "Dr. Vint Cerf"));
+        FALLBACK_TIMETABLE.add(new TimetableEntry(4, 2, "WEDNESDAY", "Operating Systems", "Hall B", "10:00", "11:30", "Dr. Linus Torvalds"));
+        FALLBACK_TIMETABLE.add(new TimetableEntry(5, 2, "THURSDAY", "Web Engineering", "Lab 4", "13:00", "14:30", "Dr. Tim Berners-Lee"));
+
+        FALLBACK_ATTENDANCE.add(new AttendanceRecord(1, 2, "Data Structures & Algorithms", 24, 21, 75.0));
+        FALLBACK_ATTENDANCE.add(new AttendanceRecord(2, 2, "Database Systems", 20, 18, 80.0));
+        FALLBACK_ATTENDANCE.add(new AttendanceRecord(3, 2, "Computer Networks", 18, 14, 75.0));
+        FALLBACK_ATTENDANCE.add(new AttendanceRecord(4, 2, "Operating Systems", 22, 19, 75.0));
+    }
+
     public List<TimetableEntry> getTimetableByUserId(int userId) {
         List<TimetableEntry> list = new ArrayList<>();
         String sql = "SELECT id, user_id, day_of_week, subject, room, start_time, end_time, instructor FROM timetable WHERE user_id = ? ORDER BY id ASC";
@@ -36,9 +58,9 @@ public class PlannerDAO {
             }
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Database lookup failed for timetable, using fallback: " + e.getMessage());
-            return getFallbackTimetable(userId);
+            return new ArrayList<>(FALLBACK_TIMETABLE);
         }
-        return list.isEmpty() ? getFallbackTimetable(userId) : list;
+        return list.isEmpty() ? new ArrayList<>(FALLBACK_TIMETABLE) : list;
     }
 
     public TimetableEntry addTimetableEntry(TimetableEntry entry) {
@@ -59,9 +81,12 @@ public class PlannerDAO {
                     entry.setId(rs.getInt(1));
                 }
             }
+            FALLBACK_TIMETABLE.add(entry);
         } catch (Exception e) {
-            LOGGER.log(Level.SEVERE, "Failed to insert timetable entry: " + e.getMessage());
-            if (entry.getId() == 0) entry.setId((int) (System.currentTimeMillis() % 10000));
+            LOGGER.log(Level.WARNING, "Failed to insert timetable entry, using fallback: " + e.getMessage());
+            int newId = TT_ID_GEN.incrementAndGet();
+            entry.setId(newId);
+            FALLBACK_TIMETABLE.add(entry);
         }
         return entry;
     }
@@ -86,9 +111,9 @@ public class PlannerDAO {
             }
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Database lookup failed for attendance, using fallback: " + e.getMessage());
-            return getFallbackAttendance(userId);
+            return new ArrayList<>(FALLBACK_ATTENDANCE);
         }
-        return list.isEmpty() ? getFallbackAttendance(userId) : list;
+        return list.isEmpty() ? new ArrayList<>(FALLBACK_ATTENDANCE) : list;
     }
 
     public AttendanceRecord stepAttendance(int recordId, boolean present) {
@@ -127,6 +152,7 @@ public class PlannerDAO {
                     double pct = record.getTotalClasses() == 0 ? 0.0 : ((double) record.getAttendedClasses() / record.getTotalClasses() * 100.0);
                     pct = Math.round(pct * 100.0) / 100.0;
                     record.setLow(pct < 75.0);
+                    syncFallbackAttendance(record);
                     return record;
                 }
             } catch (Exception e) {
@@ -138,31 +164,36 @@ public class PlannerDAO {
                 LOGGER.log(Level.WARNING, "Step attendance transaction failed and was rolled back: " + e.getMessage(), e);
             }
         } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Step attendance DB operation failed, performing fallback: " + e.getMessage());
+            LOGGER.log(Level.WARNING, "Step attendance DB operation failed, performing in-memory step: " + e.getMessage());
         }
 
-        // Fallback calculation object
-        int fallbackTotal = 25;
-        int fallbackAttended = present ? 22 : 21;
-        AttendanceRecord fallback = new AttendanceRecord(recordId, 2, "Data Structures & Algorithms", fallbackTotal, fallbackAttended, 75.0);
-        double fallbackPct = Math.round(((double) fallbackAttended / fallbackTotal * 100.0) * 100.0) / 100.0;
-        fallback.setLow(fallbackPct < 75.0);
-        return fallback;
+        // Accurate in-memory step for specific course record
+        for (AttendanceRecord rec : FALLBACK_ATTENDANCE) {
+            if (rec.getId() == recordId) {
+                rec.setTotalClasses(rec.getTotalClasses() + 1);
+                if (present) {
+                    rec.setAttendedClasses(rec.getAttendedClasses() + 1);
+                }
+                double pct = rec.getTotalClasses() == 0 ? 0.0 : ((double) rec.getAttendedClasses() / rec.getTotalClasses() * 100.0);
+                pct = Math.round(pct * 100.0) / 100.0;
+                rec.setLow(pct < 75.0);
+                return rec;
+            }
+        }
+
+        AttendanceRecord newRec = new AttendanceRecord(recordId, 2, "Course #" + recordId, 1, present ? 1 : 0, 75.0);
+        newRec.setLow(!present);
+        FALLBACK_ATTENDANCE.add(newRec);
+        return newRec;
     }
 
-    private List<TimetableEntry> getFallbackTimetable(int userId) {
-        List<TimetableEntry> list = new ArrayList<>();
-        list.add(new TimetableEntry(1, userId, "MONDAY", "Data Structures & Algorithms", "Room 301", "09:00", "10:30", "Dr. Alan Turing"));
-        list.add(new TimetableEntry(2, userId, "MONDAY", "Database Systems", "Lab 2", "11:00", "12:30", "Prof. Edgar Codd"));
-        list.add(new TimetableEntry(3, userId, "TUESDAY", "Computer Networks", "Room 204", "14:00", "15:30", "Dr. Vint Cerf"));
-        return list;
-    }
-
-    private List<AttendanceRecord> getFallbackAttendance(int userId) {
-        List<AttendanceRecord> list = new ArrayList<>();
-        list.add(new AttendanceRecord(1, userId, "Data Structures & Algorithms", 24, 21, 75.0));
-        list.add(new AttendanceRecord(2, userId, "Database Systems", 20, 18, 80.0));
-        list.add(new AttendanceRecord(3, userId, "Computer Networks", 18, 14, 75.0));
-        return list;
+    private void syncFallbackAttendance(AttendanceRecord updated) {
+        for (int i = 0; i < FALLBACK_ATTENDANCE.size(); i++) {
+            if (FALLBACK_ATTENDANCE.get(i).getId() == updated.getId()) {
+                FALLBACK_ATTENDANCE.set(i, updated);
+                return;
+            }
+        }
+        FALLBACK_ATTENDANCE.add(updated);
     }
 }

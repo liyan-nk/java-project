@@ -59,27 +59,31 @@ export function init(container) {
           <h3 class="modal-title" id="add-class-modal-title">Add Timetable Class</h3>
           <button type="button" class="modal-close-btn" id="close-class-modal-btn" aria-label="Close modal">✕</button>
         </div>
-        <form id="add-class-form">
-          <div class="form-group">
-            <label class="form-label" for="class-day">Day of Week</label>
-            <select id="class-day" class="form-select" required>
-              <option value="MONDAY">Monday</option>
-              <option value="TUESDAY">Tuesday</option>
-              <option value="WEDNESDAY">Wednesday</option>
-              <option value="THURSDAY">Thursday</option>
-              <option value="FRIDAY">Friday</option>
-              <option value="SATURDAY">Saturday</option>
-            </select>
+        <form id="add-class-form" class="modal-form-compact">
+          <div class="form-row-2col">
+            <div class="form-group">
+              <label class="form-label" for="class-day">Day of Week</label>
+              <select id="class-day" class="form-select" required>
+                <option value="MONDAY">Monday</option>
+                <option value="TUESDAY">Tuesday</option>
+                <option value="WEDNESDAY">Wednesday</option>
+                <option value="THURSDAY">Thursday</option>
+                <option value="FRIDAY">Friday</option>
+                <option value="SATURDAY">Saturday</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="class-room">Room / Lecture Hall</label>
+              <input type="text" id="class-room" class="form-input" placeholder="e.g. Science Complex Hall B" required maxlength="40">
+            </div>
           </div>
+
           <div class="form-group">
             <label class="form-label" for="class-subject">Subject Title</label>
             <input type="text" id="class-subject" class="form-input" placeholder="e.g. Distributed Systems & Cloud Computing" required maxlength="80">
           </div>
-          <div class="form-group">
-            <label class="form-label" for="class-room">Room / Lecture Hall</label>
-            <input type="text" id="class-room" class="form-input" placeholder="e.g. Science Complex Hall B" required maxlength="40">
-          </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+
+          <div class="form-row-2col">
             <div class="form-group">
               <label class="form-label" for="class-start">Start Time</label>
               <input type="time" id="class-start" class="form-input" value="09:00" required>
@@ -89,11 +93,13 @@ export function init(container) {
               <input type="time" id="class-end" class="form-input" value="10:30" required>
             </div>
           </div>
+
           <div class="form-group">
             <label class="form-label" for="class-instructor">Instructor</label>
             <input type="text" id="class-instructor" class="form-input" placeholder="e.g. Dr. Alan Turing" required maxlength="60">
           </div>
-          <div class="form-actions">
+
+          <div class="form-actions compact-actions">
             <button type="button" class="btn btn-secondary" id="cancel-class-modal-btn">Cancel</button>
             <button type="submit" class="btn" id="submit-class-btn">Save Class</button>
           </div>
@@ -103,6 +109,12 @@ export function init(container) {
   `;
 
   bindEvents();
+
+  // Ensure modal dialog is attached directly to document.body (outside transformed container)
+  const classModalEl = document.getElementById('add-class-modal');
+  if (classModalEl && classModalEl.parentElement !== document.body) {
+    document.body.appendChild(classModalEl);
+  }
 }
 
 export function render(state) {
@@ -269,15 +281,24 @@ function bindEvents() {
   }
 
   // 3. Modal Controls: Add Class
-  const modal = viewContainer.querySelector('#add-class-modal');
   const openBtn = viewContainer.querySelector('#add-class-btn');
-  const closeBtn = viewContainer.querySelector('#close-class-modal-btn');
-  const cancelBtn = viewContainer.querySelector('#cancel-class-modal-btn');
-  const form = viewContainer.querySelector('#add-class-form');
+  const closeBtn = document.getElementById('close-class-modal-btn') || viewContainer.querySelector('#close-class-modal-btn');
+  const cancelBtn = document.getElementById('cancel-class-modal-btn') || viewContainer.querySelector('#cancel-class-modal-btn');
+  const form = document.getElementById('add-class-form') || viewContainer.querySelector('#add-class-form');
 
-  const openModal = () => modal?.classList.add('open');
+  const openModal = () => {
+    const classModal = document.getElementById('add-class-modal');
+    if (classModal && classModal.parentElement !== document.body) {
+      document.body.appendChild(classModal);
+    }
+    classModal?.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  };
+
   const closeModal = () => {
-    modal?.classList.remove('open');
+    const classModal = document.getElementById('add-class-modal');
+    classModal?.classList.remove('open');
+    document.body.style.overflow = '';
     form?.reset();
   };
 
@@ -285,8 +306,9 @@ function bindEvents() {
   closeBtn?.addEventListener('click', closeModal);
   cancelBtn?.addEventListener('click', closeModal);
 
-  modal?.addEventListener('click', (e) => {
-    if (e.target === modal) closeModal();
+  const classModalBackdrop = document.getElementById('add-class-modal');
+  classModalBackdrop?.addEventListener('click', (e) => {
+    if (e.target === classModalBackdrop) closeModal();
   });
 
   form?.addEventListener('submit', async (e) => {
@@ -295,12 +317,12 @@ function bindEvents() {
 
     const payload = {
       userId: currentUser?.id || 2,
-      dayOfWeek: viewContainer.querySelector('#class-day').value,
-      subject: viewContainer.querySelector('#class-subject').value.trim(),
-      room: viewContainer.querySelector('#class-room').value.trim(),
-      startTime: viewContainer.querySelector('#class-start').value,
-      endTime: viewContainer.querySelector('#class-end').value,
-      instructor: viewContainer.querySelector('#class-instructor').value.trim()
+      dayOfWeek: (form?.querySelector('#class-day') || document.getElementById('class-day'))?.value || 'MONDAY',
+      subject: (form?.querySelector('#class-subject') || document.getElementById('class-subject'))?.value?.trim() || '',
+      room: (form?.querySelector('#class-room') || document.getElementById('class-room'))?.value?.trim() || '',
+      startTime: (form?.querySelector('#class-start') || document.getElementById('class-start'))?.value || '',
+      endTime: (form?.querySelector('#class-end') || document.getElementById('class-end'))?.value || '',
+      instructor: (form?.querySelector('#class-instructor') || document.getElementById('class-instructor'))?.value?.trim() || ''
     };
 
     const submitBtn = viewContainer.querySelector('#submit-class-btn');
